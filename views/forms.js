@@ -4,6 +4,7 @@ import { el } from '../dom.js';
 import * as store from '../store/store.js';
 import { Money } from '../shared/money.js';
 import { Stages } from '../shared/stages.js';
+import { Weight } from '../shared/weight.js';
 import { openSheet, toast } from './sheet.js';
 import { field, busy } from './fields.js';
 
@@ -13,11 +14,12 @@ import { field, busy } from './fields.js';
  * @typedef {Object} Spec
  * @property {string} key                  the field the server knows it by
  * @property {string} label
- * @property {'text'|'number'|'money'|'date'|'textarea'|'stage'|'select'} type
+ * @property {'text'|'number'|'money'|'weight'|'date'|'textarea'|'stage'|'select'} type
  * @property {unknown} value
  * @property {string[]} [suggestions]      offered as you type (text)
  * @property {Array<[string, string]>} [options]  value, label (select)
  * @property {ItemSection} [section]       for a stage picker
+ * @property {boolean} [gift]              a stage picker for a gift (Expected, Received)
  * @property {boolean} [half]              shown two to a row
  * @property {string} [hint]
  *
@@ -47,7 +49,7 @@ function control(spec) {
   if (spec.type === 'stage') {
     let chosen = /** @type {Stage} */ (spec.value ?? 'to-buy');
     const node = el('div', { class: 'stage-steps', role: 'group', 'aria-label': spec.label });
-    const draw = () => node.replaceChildren(...Stages.forSection(spec.section).map((s) => el('button', { type: 'button', 'aria-pressed': String(s.id === chosen),
+    const draw = () => node.replaceChildren(...Stages.forSection(spec.section, spec.gift).map((s) => el('button', { type: 'button', 'aria-pressed': String(s.id === chosen),
       onclick: () => { chosen = s.id; draw(); } }, s.label)));
     draw();
     return { node, get: () => chosen };
@@ -55,10 +57,12 @@ function control(spec) {
   const attrs = /** @type {Record<string, unknown>} */ ({ id, autocomplete: 'off' });
   let value = /** @type {string} */ (spec.value ?? '');
   if (spec.type === 'money') Object.assign(attrs, { type: 'text', inputmode: 'decimal', placeholder: '₹' });
+  else if (spec.type === 'weight') Object.assign(attrs, { type: 'text', inputmode: 'decimal', placeholder: 'grams' });
   else if (spec.type === 'number') Object.assign(attrs, { type: 'number', inputmode: 'numeric', min: 1, max: 200 });
   else if (spec.type === 'date') attrs.type = 'date';
   else Object.assign(attrs, { type: 'text', maxlength: 80 });
   if (spec.type === 'money') value = Money.toInput(/** @type {number|null} */ (spec.value));
+  if (spec.type === 'weight') value = Weight.toInput(/** @type {number|null} */ (spec.value));
   if (spec.type === 'number') value = spec.value === null || spec.value === undefined ? '' : String(spec.value);
   let datalist = null;
   if (spec.suggestions?.length) {
@@ -163,8 +167,13 @@ export function itemForm(id, section = 'dresses') {
     { key: 'vendor', label: jewel ? 'Jeweller' : 'Shop', type: 'text', value: i?.vendor ?? '', half: true },
     { key: 'total_paise', label: 'Total price', type: 'money', value: i?.total_paise ?? null, half: true },
     { key: 'advance_paise', label: 'Advance given', type: 'money', value: i?.advance_paise ?? null, half: true },
-    { key: 'stage', label: 'Where it is', type: 'stage', value: i?.stage ?? 'to-buy', section: s },
+    { key: 'stage', label: 'Where it is', type: 'stage', value: i?.stage ?? 'to-buy', section: s, gift: Boolean(i && Stages.isGift(i)),
+      hint: jewel ? 'A gift goes Expected → Received; fill in Gifted by and save, and its stages change.' : undefined },
   ];
+  if (jewel) {
+    fields.splice(3, 0, { key: 'weight_mg', label: 'Weight (g)', type: 'weight', value: i?.weight_mg ?? null, half: true },
+      { key: 'gifted_by', label: 'Gifted by', type: 'text', value: i?.gifted_by ?? '', half: true });
+  }
   if (dress) {
     fields.push({ key: 'tailor', label: 'Tailor', type: 'text', value: i?.tailor ?? '' },
       { key: 'given_on', label: 'Given on', type: 'date', value: i?.given_on ?? '', half: true },

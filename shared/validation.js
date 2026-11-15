@@ -4,6 +4,7 @@
 import { Dates } from './dates.js';
 import { Model } from './model.js';
 import { Money } from './money.js';
+import { Weight } from './weight.js';
 import { Stages } from './stages.js';
 
 /**
@@ -128,7 +129,7 @@ const Validation = (() => {
     return { value: { city_id, name, headcount, informed, invited, note }, errors: c.errors };
   }
 
-  /** A shopping item: a dress or something else. @param {any} input */
+  /** A shopping item: a dress, a piece of jewellery (with its weight, and who gave it if a gift), or something else. @param {any} input */
   function item(input) {
     const c = collector();
     const section = Model.ITEM_SECTIONS.some((s) => s.id === input.section) ? /** @type {ItemSection} */ (input.section) : null;
@@ -139,28 +140,43 @@ const Validation = (() => {
     const total_paise = c.money('total_paise', input.total_paise);
     const advance_paise = c.money('advance_paise', input.advance_paise);
     checkAdvance(c, total_paise, advance_paise);
+    const jewel = section === 'jewellery';
+    const gifted_by = jewel ? c.text('gifted_by', input.gifted_by, LIMITS.short, false) : null;
+    const weight_mg = jewel ? weight(c, input.weight_mg) : null;
+    const shape = { section, gifted_by };
     /** @type {Stage} */
-    let stage = 'to-buy';
+    let stage = Stages.forItem(shape)[0].id;
     if (input.stage !== undefined && input.stage !== null && input.stage !== '') {
-      if (Stages.isValid(section, input.stage)) stage = input.stage;
+      if (Stages.isValid(section, input.stage, Stages.isGift(shape))) stage = input.stage;
+      // A piece that has just become (or stopped being) a gift keeps the nearest stage of its new kind.
+      else if (jewel && Stages.isValid(section, input.stage, !Stages.isGift(shape))) stage = Stages.fit(shape, input.stage);
       else c.add('stage', 'INVALID', 'is not a stage for this section');
     }
     const dress = section === 'dresses';
-    const tracked = Stages.isTracked(section);
+    const tracked = Stages.isTracked(shape);
     const tailor = dress ? c.text('tailor', input.tailor, LIMITS.short, false) : null;
     const given_on = tracked ? c.date('given_on', input.given_on) : null;
     const ready_by = tracked ? c.date('ready_by', input.ready_by) : null;
     if (given_on && ready_by && ready_by < given_on) c.add('ready_by', 'INVALID', `cannot be before the day it was ${dress ? 'given' : 'ordered'}`);
     const note = c.text('note', input.note, LIMITS.note, false);
-    return { value: { section, name, for_whom, vendor, total_paise, advance_paise, stage, tailor, given_on, ready_by, note }, errors: c.errors };
+    return { value: { section, name, for_whom, vendor, total_paise, advance_paise, stage, tailor, given_on, ready_by, note, weight_mg, gifted_by }, errors: c.errors };
+  }
+
+  /** A weight typed in grams, kept as milligrams. @param {ReturnType<typeof collector>} c @param {unknown} value @returns {number|null} */
+  function weight(c, value) {
+    const mg = Weight.parse(value);
+    if (mg === null) return null;
+    if (Number.isNaN(mg)) { c.add('weight_mg', 'INVALID', 'must be grams, e.g. 24.5'); return null; }
+    if (mg > Weight.MAX_MG) { c.add('weight_mg', 'INVALID', 'is too heavy'); return null; }
+    return mg;
   }
 
   /** A budget line outside shopping. @param {any} input */
   function budgetLine(input) {
     const c = collector();
     const section = c.text('section', input.section, LIMITS.short, true);
-    if (section && section.toLowerCase() === Model.SHOPPING_SECTION.toLowerCase()) {
-      c.add('section', 'INVALID', 'Shopping comes from the Shopping tab: add it there');
+    if (section && Model.isLinkedSection(section)) {
+      c.add('section', 'INVALID', `${section} comes from the Shopping tab: add it there`);
     }
     const name = c.text('name', input.name, LIMITS.name, true);
     const vendor = c.text('vendor', input.vendor, LIMITS.short, false);

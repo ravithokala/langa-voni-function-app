@@ -19,8 +19,8 @@ export const meter = (part, whole, label) => {
 /** The look of a stage: grey to start, amber on the way, rose when ready, green when done; red when late. @param {Item} item @param {string} today */
 export function stageClass(item, today) {
   if (Stages.isLate(item, today)) return 'late';
-  if (item.stage === 'to-buy') return 'plain';
-  if (item.section === 'other' || item.stage === 'collected') return 'done';
+  if (item.stage === 'to-buy' || item.stage === 'expected') return 'plain';
+  if (item.stage === 'collected' || (Stages.isDone(item) && !Stages.isTracked(item))) return 'done';
   return item.stage === 'ready' ? 'near' : 'mid';
 }
 

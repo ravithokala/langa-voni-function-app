@@ -18,7 +18,7 @@ const Model = (() => {
   const GUEST_FIELDS = Object.freeze(['guest_id', 'city_id', 'name', 'headcount', 'informed', 'invited', 'note', ...WHO]);
   /** Shopping, dresses and other things (ADR-008). Money in paise. */
   const ITEM_FIELDS = Object.freeze(['item_id', 'section', 'name', 'for_whom', 'vendor', 'total_paise', 'advance_paise', 'stage',
-    'tailor', 'given_on', 'ready_by', 'note', ...WHO]);
+    'tailor', 'given_on', 'ready_by', 'note', ...WHO, 'weight_mg', 'gifted_by']);
   /** A budget line outside shopping (ADR-008). */
   const BUDGET_FIELDS = Object.freeze(['line_id', 'section', 'name', 'vendor', 'total_paise', 'advance_paise', 'due_date', 'note', ...WHO]);
   const TASK_FIELDS = Object.freeze(['task_id', 'category', 'title', 'owner', 'due_date', 'done', 'note', ...WHO]);
@@ -32,8 +32,13 @@ const Model = (() => {
     Object.freeze({ id: /** @type {ItemSection} */ ('other'), label: 'Other' }),
   ]);
 
-  /** The budget section read live from Shopping; no budget line may use the name. */
+  /** The budget sections read live from Shopping (ADR-008, ADR-015); no budget line may use these names. */
   const SHOPPING_SECTION = 'Shopping';
+  const JEWELLERY_SECTION = 'Jewellery';
+  const GIFTS_SECTION = 'Gifted jewellery';
+  const LINKED_SECTIONS = Object.freeze([SHOPPING_SECTION, JEWELLERY_SECTION, GIFTS_SECTION]);
+  /** @param {string|null|undefined} name */
+  const isLinkedSection = (name) => LINKED_SECTIONS.some((s) => s.toLowerCase() === String(name ?? '').trim().toLowerCase());
   /** Suggested budget sections, in the order shown; any other name is allowed too. */
   const BUDGET_SECTIONS = Object.freeze(['Venue', 'Catering', 'Decoration', 'Priest/Pooja', 'Photography', 'Travel', 'Return gifts', 'Misc']);
   /** Suggested to-do categories, in the order shown; any other name is allowed too. */
@@ -55,7 +60,7 @@ const Model = (() => {
   }
 
   return { SETTINGS_FIELDS, CITY_FIELDS, GUEST_FIELDS, ITEM_FIELDS, BUDGET_FIELDS, TASK_FIELDS, FUNCTION_ID, ITEM_SECTIONS,
-    SHOPPING_SECTION, BUDGET_SECTIONS, TASK_CATEGORIES, sectionLabel, orderNames };
+    SHOPPING_SECTION, JEWELLERY_SECTION, GIFTS_SECTION, LINKED_SECTIONS, isLinkedSection, BUDGET_SECTIONS, TASK_CATEGORIES, sectionLabel, orderNames };
 })();
 
 export { Model };

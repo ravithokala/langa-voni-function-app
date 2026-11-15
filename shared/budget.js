@@ -3,11 +3,15 @@
 // edit that file and run `npm run sync:shared`.
 import { Model } from './model.js';
 import { Money } from './money.js';
+import { Weight } from './weight.js';
+import { Stages } from './stages.js';
 
 /**
- * The budget (ADR-008): the Shopping section comes straight from the shopping items, then each
- * budget section (the suggested ones in their order, then the rest A–Z). Every line has a total,
- * an advance given and a balance; a line with no total yet counts as nothing and is flagged.
+ * The budget (ADR-008, ADR-015): three sections come straight from the shopping items: Shopping (dresses and other
+ * things), Jewellery (pieces bought) and Gifted jewellery (pieces given: listed with who gave them and their weight, but
+ * not counted in the totals, as no money is spent). Then each budget section (the suggested ones in their order, then
+ * the rest A–Z). Every line has a total, an advance given and a balance; a line with no total yet counts as nothing
+ * and is flagged.
  *
  * Shared with the phone app: scripts/sync-shared.js copies this file to pwa/shared/.
  */
@@ -26,11 +30,13 @@ const Budget = (() => {
   }
 
   /** @param {Item} item @returns {BudgetRow} */
-  const fromItem = (item) => ({ kind: 'item', id: item.item_id, name: item.name, vendor: item.vendor, total_paise: item.total_paise,
+  const fromItem = (item) => ({ kind: 'item', id: item.item_id, name: item.name, vendor: item.vendor, for_whom: item.for_whom,
+    weight_mg: item.weight_mg ?? null, gifted_by: item.gifted_by ?? null, total_paise: item.total_paise,
     advance_paise: item.advance_paise, balance_paise: Money.balance(item.total_paise, item.advance_paise), due_date: null });
 
   /** @param {BudgetLine} line @returns {BudgetRow} */
-  const fromLine = (line) => ({ kind: 'line', id: line.line_id, name: line.name, vendor: line.vendor, total_paise: line.total_paise,
+  const fromLine = (line) => ({ kind: 'line', id: line.line_id, name: line.name, vendor: line.vendor, for_whom: null, weight_mg: null,
+    gifted_by: null, total_paise: line.total_paise,
     advance_paise: line.advance_paise, balance_paise: Money.balance(line.total_paise, line.advance_paise), due_date: line.due_date });
 
   /**
@@ -39,16 +45,25 @@ const Budget = (() => {
    */
   function build(items, lines) {
     const byName = (/** @type {BudgetRow} */ a, /** @type {BudgetRow} */ b) => a.name.localeCompare(b.name);
-    const shopping = items.filter((i) => !i.deleted).map(fromItem).sort(byName);
+    const bought = items.filter((i) => !i.deleted && !Stages.isGift(i));
+    const rows = (/** @type {Item[]} */ list) => list.map(fromItem).sort(byName);
+    const shopping = rows(bought.filter((i) => i.section !== 'jewellery'));
+    const jewellery = rows(bought.filter((i) => i.section === 'jewellery'));
+    const gifts = rows(items.filter((i) => !i.deleted && Stages.isGift(i)));
+    const grams = (/** @type {BudgetRow[]} */ list) => Weight.total(list.map((r) => r.weight_mg));
     const live = lines.filter((l) => !l.deleted);
     const names = Model.orderNames(live.map((l) => l.section), Model.BUDGET_SECTIONS);
     /** @type {BudgetSection[]} */
-    const sections = [{ name: Model.SHOPPING_SECTION, linked: true, rows: shopping, totals: totals(shopping) }];
+    const sections = [
+      { name: Model.SHOPPING_SECTION, linked: true, counted: true, gifts: false, grams: null, rows: shopping, totals: totals(shopping) },
+      { name: Model.JEWELLERY_SECTION, linked: true, counted: true, gifts: false, grams: grams(jewellery), rows: jewellery, totals: totals(jewellery) },
+      { name: Model.GIFTS_SECTION, linked: true, counted: false, gifts: true, grams: grams(gifts), rows: gifts, totals: totals(gifts) },
+    ];
     for (const name of names) {
-      const rows = live.filter((l) => l.section === name).map(fromLine).sort(byName);
-      sections.push({ name, linked: false, rows, totals: totals(rows) });
+      const list = live.filter((l) => l.section === name).map(fromLine).sort(byName);
+      sections.push({ name, linked: false, counted: true, gifts: false, grams: null, rows: list, totals: totals(list) });
     }
-    return { sections, totals: totals(sections.flatMap((s) => s.rows)) };
+    return { sections, totals: totals(sections.filter((s) => s.counted).flatMap((s) => s.rows)) };
   }
 
   return { totals, build };

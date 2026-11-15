@@ -4,6 +4,7 @@ import { el, today } from '../dom.js';
 import * as store from '../store/store.js';
 import { Stages } from '../shared/stages.js';
 import { Money } from '../shared/money.js';
+import { Weight } from '../shared/weight.js';
 import { empty, rupees, stageClass, promised, quickAdd, saveState } from './parts.js';
 import { itemForm } from './forms.js';
 import { toast } from './sheet.js';
@@ -21,16 +22,20 @@ export function shoppingScreen(main, arg) {
   const list = store.items(section);
   const tab = (/** @type {ItemSection} */ id, /** @type {string} */ label) => el('button', { type: 'button', 'aria-pressed': String(id === section),
     onclick: () => { window.location.hash = `#/shopping/${id}`; } }, label);
-  const total = list.reduce((sum, i) => sum + (i.total_paise ?? 0), 0);
-  const advance = list.reduce((sum, i) => sum + (i.advance_paise ?? 0), 0);
+  // Money spent only: a gift's value is not counted (ADR-015), as in the budget.
+  const paid = list.filter((i) => !Stages.isGift(i));
+  const total = paid.reduce((sum, i) => sum + (i.total_paise ?? 0), 0);
+  const advance = paid.reduce((sum, i) => sum + (i.advance_paise ?? 0), 0);
   const notDone = list.filter((i) => !Stages.isDone(i)).length;
+  const grams = Weight.total(list.map((i) => i.weight_mg));
 
   main.replaceChildren(
     el('div', { class: 'title-row' }, el('h1', { class: 'screen-title' }, 'Shopping'),
       el('button', { class: 'button', type: 'button', onclick: () => itemForm(null, section) }, words.button)),
     el('div', { class: 'segmented wide', role: 'group', 'aria-label': 'Section' }, tab('dresses', 'Dresses'), tab('jewellery', 'Jewellery'), tab('other', 'Other')),
     list.length ? el('p', { class: 'totals-bar' },
-      el('span', {}, el('b', {}, String(list.length)), ` ${words.plural} · ${notDone} ${Stages.isTracked(section) ? 'not ready' : 'to buy'}`),
+      el('span', {}, el('b', {}, String(list.length)), ` ${words.plural} · ${notDone} ${section === 'other' ? 'to buy' : section === 'jewellery' ? 'not ready or received' : 'not ready'}`),
+      grams ? el('span', {}, 'Weight ', el('b', {}, Weight.format(grams))) : '',
       el('span', {}, 'Total ', el('b', {}, Money.format(total))),
       el('span', {}, 'Balance ', el('b', {}, Money.format(total - advance)))) : '',
     list.length ? el('ul', { class: 'rows' }, list.map((i) => row(i, now)))
@@ -43,17 +48,19 @@ export function shoppingScreen(main, arg) {
 /** Each section's wording. */
 const WORDS = {
   dresses: { button: '+ Dress', plural: 'dresses', add: 'Add a dress', hint: 'Tap a dress to add its price, shop, tailor and dates.', empty: 'No dresses yet. Add each dress to follow it from buying to stitching to ready.' },
-  jewellery: { button: '+ Piece', plural: 'pieces', add: 'Add a piece of jewellery', hint: 'Tap a piece to add its price, jeweller and dates.', empty: 'No jewellery yet. Add each piece to follow it from ordering to ready.' },
+  jewellery: { button: '+ Piece', plural: 'pieces', add: 'Add a piece of jewellery', hint: 'Tap a piece to add its weight, price, jeweller and dates, or who gave it.', empty: 'No jewellery yet. Add each piece to follow it from ordering to ready.' },
   other: { button: '+ Item', plural: 'items', add: 'Add something to buy', hint: 'Tap an entry to add its price and shop.', empty: 'Nothing yet: return gifts, pooja things, decorations…' },
 };
 
 /** @param {Item} i @param {string} now */
 function row(i, now) {
   const late = Stages.isLate(i, now);
-  const next = Stages.next(i.section, i.stage);
-  const who = [i.for_whom ? `for ${i.for_whom}` : '', i.section === 'dresses' ? i.tailor ?? i.vendor : i.vendor].filter(Boolean).join(' · ');
+  const next = Stages.next(i, i.stage);
+  const who = [i.for_whom ? `for ${i.for_whom}` : '', i.gifted_by ? `gift from ${i.gifted_by}` : '', i.section === 'dresses' ? i.tailor ?? i.vendor : i.vendor,
+    i.weight_mg !== null ? Weight.format(i.weight_mg) : ''].filter(Boolean).join(' · ');
   const when = promised(i, now);
-  const money = i.total_paise === null && i.advance_paise === null ? 'No price yet'
+  const money = Stages.isGift(i) ? (i.total_paise === null ? 'A gift' : `A gift · worth ${rupees(i.total_paise)}`)
+    : i.total_paise === null && i.advance_paise === null ? 'No price yet'
     : `${rupees(i.total_paise)} · advance ${rupees(i.advance_paise)} · balance ${rupees(Money.balance(i.total_paise, i.advance_paise))}`;
   return el('li', { class: `row${late ? ' is-late' : Stages.isDone(i) ? ' is-done' : ''}` },
     el('button', { class: 'row-open', type: 'button', onclick: () => (i.version === 0 ? toast('Still saving: try again in a moment.') : itemForm(i.item_id)) },

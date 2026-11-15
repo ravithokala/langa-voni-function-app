@@ -8,8 +8,8 @@
  * - SHELL: every file of the app (tests/pwa.test.js checks it).
  * - LEGACY: the names this app's saved copies had before; none yet.
  */
-const VERSION = 'shell-0c9d16e-d523854e03dc';
-const SHELL = ['./', 'api.js', 'app.js', 'auth.js', 'checks.js', 'config.js', 'dom.js', 'freshness.js', 'guard.js', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/icon.svg', 'index.html', 'install.js', 'manifest.webmanifest', 'problems.js', 'request.js', 'shared/budget.js', 'shared/dashboard.js', 'shared/dates.js', 'shared/guests.js', 'shared/model.js', 'shared/money.js', 'shared/stages.js', 'shared/validation.js', 'store/db.js', 'store/outbox.js', 'store/store.js', 'styles.css', 'theme-boot.js', 'theme.js', 'update.js', 'version.js', 'views/budget.js', 'views/fields.js', 'views/forms.js', 'views/guests.js', 'views/home.js', 'views/install.js', 'views/more.js', 'views/parts.js', 'views/sheet.js', 'views/shopping.js', 'views/system.js', 'views/todo.js'];
+const VERSION = 'shell-5358b2c-5355bbaf2687';
+const SHELL = ['./', 'api.js', 'app.js', 'auth.js', 'checks.js', 'config.js', 'dom.js', 'freshness.js', 'guard.js', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/icon.svg', 'index.html', 'install.js', 'manifest.webmanifest', 'problems.js', 'request.js', 'shared/budget.js', 'shared/dashboard.js', 'shared/dates.js', 'shared/guests.js', 'shared/model.js', 'shared/money.js', 'shared/stages.js', 'shared/validation.js', 'shared/weight.js', 'store/db.js', 'store/outbox.js', 'store/store.js', 'styles.css', 'theme-boot.js', 'theme.js', 'update.js', 'version.js', 'views/budget.js', 'views/fields.js', 'views/forms.js', 'views/guests.js', 'views/home.js', 'views/install.js', 'views/more.js', 'views/parts.js', 'views/sheet.js', 'views/shopping.js', 'views/system.js', 'views/todo.js'];
 const LEGACY = /^shell-v\d+$/;
 
 // ---- Below this line: app-kit/pwa/sw-core.js. GENERATED: change it in ../app-kit, then run "node ../app-kit/sync.js" in this app. ----

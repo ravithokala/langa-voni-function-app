@@ -38,7 +38,7 @@ function toBuyGroup() {
   if (!list.length) return [];
   return [el('h2', { class: 'group-head' }, `To buy · ${list.length}`),
     el('ul', { class: 'rows' }, list.map((i) => {
-      const next = /** @type {Stage} */ (Stages.next(i.section, 'to-buy'));
+      const next = /** @type {Stage} */ (Stages.next(i, 'to-buy'));
       return el('li', { class: 'row' },
         el('button', { class: 'done-tick', type: 'button', 'aria-pressed': 'false', 'aria-label': `${Stages.label(next)}: ${i.name}`,
           onclick: () => {
