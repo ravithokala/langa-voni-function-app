@@ -3,8 +3,8 @@
 // edit that file and run `npm run sync:shared`.
 
 /**
- * The invite list (ADR-006): families grouped under their city, with each city's counts and the
- * order chosen by the reorder link.
+ * The invite list (ADR-006): families grouped under their city, with each city's counts, the order chosen by the
+ * reorder link and the filter chips (ADR-018: All, Not informed, Not invited, Done).
  *
  * Shared with the phone app: scripts/sync-shared.js copies this file to pwa/shared/.
  */
@@ -15,6 +15,25 @@ const Guests = (() => {
     Object.freeze({ id: /** @type {GuestOrder} */ ('not-invited'), label: 'Not invited first' }),
     Object.freeze({ id: /** @type {GuestOrder} */ ('name'), label: 'A–Z' }),
   ]);
+
+  /** The filter chips (ADR-018). Done: informed and invited. */
+  const FILTERS = Object.freeze([
+    Object.freeze({ id: /** @type {GuestFilter} */ ('all'), label: 'All' }),
+    Object.freeze({ id: /** @type {GuestFilter} */ ('not-informed'), label: 'Not informed' }),
+    Object.freeze({ id: /** @type {GuestFilter} */ ('not-invited'), label: 'Not invited' }),
+    Object.freeze({ id: /** @type {GuestFilter} */ ('done'), label: 'Done' }),
+  ]);
+
+  /** @param {unknown} filter @returns {GuestFilter} */
+  const filterOr = (filter) => (FILTERS.some((f) => f.id === filter) ? /** @type {GuestFilter} */ (filter) : 'all');
+
+  /** Whether a family is shown under a filter. @param {Guest} g @param {GuestFilter} filter */
+  function matches(g, filter) {
+    if (filter === 'not-informed') return !g.informed;
+    if (filter === 'not-invited') return !g.invited;
+    if (filter === 'done') return g.informed && g.invited;
+    return true;
+  }
 
   /** @param {unknown} order @returns {GuestOrder} */
   const orderOr = (order) => (ORDERS.some((o) => o.id === order) ? /** @type {GuestOrder} */ (order) : 'name');
@@ -47,27 +66,31 @@ const Guests = (() => {
   }
 
   /**
-   * Each city (in its own order, then A–Z) with its families in the chosen order. `search` keeps only families
-   * whose name contains it, and cities whose name contains it keep all their families; a city with no family
-   * left is dropped while searching. Families whose city was removed are not shown.
+   * Each city (in its own order, then A–Z) with its families in the chosen order. `filter` keeps only the families
+   * it matches. `search` keeps only families whose name contains it, and cities whose name contains it keep all their
+   * (filtered) families; a city with no family left is dropped while searching or filtering. `counts` are always the
+   * whole city's. Families whose city was removed are not shown.
    * @param {ReadonlyArray<City>} cities @param {ReadonlyArray<Guest>} guests
-   * @param {{ order?: GuestOrder, search?: string }} [view]
+   * @param {{ order?: GuestOrder, search?: string, filter?: GuestFilter }} [view]
    * @returns {CityGroup[]}
    */
   function group(cities, guests, view = {}) {
     const order = orderOr(view.order);
     const search = (view.search ?? '').trim().toLowerCase();
+    const filter = filterOr(view.filter);
+    const narrowing = search !== '' || filter !== 'all';
     const live = cities.filter((c) => !c.deleted)
       .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0) || a.name.localeCompare(b.name));
     return live.map((city) => {
       const all = guests.filter((g) => !g.deleted && g.city_id === city.city_id);
       const cityHit = search !== '' && city.name.toLowerCase().includes(search);
-      const shown = search === '' || cityHit ? all : all.filter((g) => g.name.toLowerCase().includes(search));
+      const kept = all.filter((g) => matches(g, filter));
+      const shown = search === '' || cityHit ? kept : kept.filter((g) => g.name.toLowerCase().includes(search));
       return { city, guests: [...shown].sort(comparer(order)), counts: counts(all) };
-    }).filter((g) => search === '' || g.guests.length > 0 || g.city.name.toLowerCase().includes(search));
+    }).filter((g) => !narrowing || g.guests.length > 0 || (filter === 'all' && g.city.name.toLowerCase().includes(search)));
   }
 
-  return { ORDERS, orderOr, nextOrder, orderLabel, counts, group };
+  return { ORDERS, FILTERS, orderOr, filterOr, matches, nextOrder, orderLabel, counts, group };
 })();
 
 export { Guests };

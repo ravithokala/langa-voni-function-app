@@ -105,7 +105,7 @@ const every = (rows) => Object.values(rows);
 export const fn = () => (data.settings[Model.FUNCTION_ID] && !data.settings[Model.FUNCTION_ID].deleted ? data.settings[Model.FUNCTION_ID] : null);
 /** Cities in their order. */
 export const cities = () => live(data.cities).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0) || a.name.localeCompare(b.name));
-/** The invite list, grouped by city. @param {{ order?: GuestOrder, search?: string }} view */
+/** The invite list, grouped by city. @param {{ order?: GuestOrder, search?: string, filter?: GuestFilter }} view */
 export const guestGroups = (view) => Guests.group(every(data.cities), every(data.guests), view);
 /** Everyone, for the totals at the top (families under a removed city are left out). */
 export const guestTotals = () => {
@@ -142,6 +142,19 @@ export function guestOrder() {
 /** @param {GuestOrder} order */
 export function setGuestOrder(order) {
   try { localStorage.setItem(ORDER_KEY, order); } catch (e) { /* not remembered */ }
+  changed();
+}
+
+const FILTER_KEY = 'lv.guestFilter';
+
+/** The filter chip last chosen, remembered on this phone (ADR-018). @returns {GuestFilter} */
+export function guestFilter() {
+  try { return Guests.filterOr(localStorage.getItem(FILTER_KEY)); } catch (e) { return 'all'; }
+}
+
+/** @param {GuestFilter} filter */
+export function setGuestFilter(filter) {
+  try { localStorage.setItem(FILTER_KEY, filter); } catch (e) { /* not remembered */ }
   changed();
 }
 
