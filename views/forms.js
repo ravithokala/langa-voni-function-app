@@ -155,11 +155,12 @@ export function itemForm(id, section = 'dresses') {
   const i = id ? store.data.items[id] : null;
   const s = i?.section ?? section;
   const dress = s === 'dresses';
+  const jewel = s === 'jewellery';
   /** @type {Spec[]} */
   const fields = [
-    { key: 'name', label: dress ? 'Dress' : 'Item', type: 'text', value: i?.name ?? '' },
+    { key: 'name', label: dress ? 'Dress' : jewel ? 'Piece' : 'Item', type: 'text', value: i?.name ?? '' },
     { key: 'for_whom', label: 'For', type: 'text', value: i?.for_whom ?? '', half: true },
-    { key: 'vendor', label: 'Shop', type: 'text', value: i?.vendor ?? '', half: true },
+    { key: 'vendor', label: jewel ? 'Jeweller' : 'Shop', type: 'text', value: i?.vendor ?? '', half: true },
     { key: 'total_paise', label: 'Total price', type: 'money', value: i?.total_paise ?? null, half: true },
     { key: 'advance_paise', label: 'Advance given', type: 'money', value: i?.advance_paise ?? null, half: true },
     { key: 'stage', label: 'Where it is', type: 'stage', value: i?.stage ?? 'to-buy', section: s },
@@ -169,9 +170,13 @@ export function itemForm(id, section = 'dresses') {
       { key: 'given_on', label: 'Given on', type: 'date', value: i?.given_on ?? '', half: true },
       { key: 'ready_by', label: 'Promised by', type: 'date', value: i?.ready_by ?? '', half: true });
   }
+  if (jewel) {
+    fields.push({ key: 'given_on', label: 'Ordered on', type: 'date', value: i?.given_on ?? '', half: true },
+      { key: 'ready_by', label: 'Promised by', type: 'date', value: i?.ready_by ?? '', half: true });
+  }
   fields.push({ key: 'note', label: 'Note', type: 'textarea', value: i?.note ?? '' });
   openForm({
-    title: i ? `Change ${dress ? 'dress' : 'item'}` : dress ? 'Add a dress' : 'Add something to buy',
+    title: i ? `Change ${dress ? 'dress' : jewel ? 'piece' : 'item'}` : dress ? 'Add a dress' : jewel ? 'Add a piece of jewellery' : 'Add something to buy',
     fields,
     save: (v) => store.save('item', id, { ...v, section: s }),
     remove: i ? () => store.remove('item', i.item_id) : undefined,

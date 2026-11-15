@@ -36,8 +36,9 @@ function card(s, now) {
       el('thead', {}, el('tr', {}, el('th', {}, ''), el('th', {}, 'Total'), el('th', {}, 'Advance'), el('th', {}, 'Balance'))),
       el('tbody', {}, s.rows.map((r) => {
         const overdue = r.due_date && r.due_date < now && (r.balance_paise ?? 0) > 0;
-        // Under the name: a shopping item's shop; a budget line's due date (who to pay is not asked for: RT, 2026-11-15).
-        const vendor = r.kind === 'item' ? r.vendor : null;
+        // Under the name: who a shopping item is for (RT, 2026-11-15); a budget line's due date (who to pay is not asked for).
+        const forWhom = r.kind === 'item' ? store.data.items[r.id]?.for_whom ?? null : null;
+        const vendor = forWhom ? `for ${forWhom}` : null;
         return el('tr', {},
           el('td', {}, el('button', { type: 'button', onclick: () => (r.kind === 'item' ? itemForm(r.id) : lineForm(r.id)) }, r.name,
             vendor || r.due_date ? el('span', { class: `vendor${overdue ? ' error' : ''}` },

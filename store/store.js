@@ -115,6 +115,11 @@ export const guestTotals = () => {
 /** One section's shopping, things not done first, then by name. @param {ItemSection} section */
 export const items = (section) => live(data.items).filter((i) => i.section === section)
   .sort((a, b) => Number(Stages.isDone(a)) - Number(Stages.isDone(b)) || a.name.localeCompare(b.name));
+/** Shopping still at To buy, every section: dresses, then jewellery, then other, each A–Z (To do's To buy group). */
+export const toBuy = () => {
+  const rank = (/** @type {Item} */ i) => Model.ITEM_SECTIONS.findIndex((s) => s.id === i.section);
+  return live(data.items).filter((i) => i.stage === 'to-buy').sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+};
 /** The budget: Shopping, then each section. */
 export const budget = () => Budget.build(every(data.items), every(data.budget));
 /** Every to-do (removed ones left out). */

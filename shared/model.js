@@ -28,6 +28,7 @@ const Model = (() => {
   /** @type {ReadonlyArray<{ id: ItemSection, label: string }>} */
   const ITEM_SECTIONS = Object.freeze([
     Object.freeze({ id: /** @type {ItemSection} */ ('dresses'), label: 'Dresses' }),
+    Object.freeze({ id: /** @type {ItemSection} */ ('jewellery'), label: 'Jewellery' }),
     Object.freeze({ id: /** @type {ItemSection} */ ('other'), label: 'Other' }),
   ]);
 

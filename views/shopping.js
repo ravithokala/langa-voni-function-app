@@ -9,12 +9,14 @@ import { itemForm } from './forms.js';
 import { toast } from './sheet.js';
 
 /**
- * Shopping: Dresses and Other (ADR-008). Each item shows its price, advance and balance, and where it is: tap the stage
- * to move it one step on (Undo puts it back). A dress past its promised-by date and not ready is marked Late.
- * @param {HTMLElement} main @param {string} arg  dresses or other
+ * Shopping: Dresses, Jewellery and Other (ADR-008, ADR-014). Each item shows its price, advance and balance, and where it is: tap the stage
+ * to move it one step on (Undo puts it back). A dress or piece of jewellery past its promised-by date and not ready is
+ * marked Late.
+ * @param {HTMLElement} main @param {string} arg  dresses, jewellery or other
  */
 export function shoppingScreen(main, arg) {
-  const section = /** @type {ItemSection} */ (arg === 'other' ? 'other' : 'dresses');
+  const section = /** @type {ItemSection} */ (arg === 'other' || arg === 'jewellery' ? arg : 'dresses');
+  const words = WORDS[section];
   const now = today();
   const list = store.items(section);
   const tab = (/** @type {ItemSection} */ id, /** @type {string} */ label) => el('button', { type: 'button', 'aria-pressed': String(id === section),
@@ -25,18 +27,25 @@ export function shoppingScreen(main, arg) {
 
   main.replaceChildren(
     el('div', { class: 'title-row' }, el('h1', { class: 'screen-title' }, 'Shopping'),
-      el('button', { class: 'button', type: 'button', onclick: () => itemForm(null, section) }, section === 'dresses' ? '+ Dress' : '+ Item')),
-    el('div', { class: 'segmented wide', role: 'group', 'aria-label': 'Section' }, tab('dresses', 'Dresses'), tab('other', 'Other')),
+      el('button', { class: 'button', type: 'button', onclick: () => itemForm(null, section) }, words.button)),
+    el('div', { class: 'segmented wide', role: 'group', 'aria-label': 'Section' }, tab('dresses', 'Dresses'), tab('jewellery', 'Jewellery'), tab('other', 'Other')),
     list.length ? el('p', { class: 'totals-bar' },
-      el('span', {}, el('b', {}, String(list.length)), section === 'dresses' ? ` dresses · ${notDone} not ready` : ` items · ${notDone} to buy`),
+      el('span', {}, el('b', {}, String(list.length)), ` ${words.plural} · ${notDone} ${Stages.isTracked(section) ? 'not ready' : 'to buy'}`),
       el('span', {}, 'Total ', el('b', {}, Money.format(total))),
       el('span', {}, 'Balance ', el('b', {}, Money.format(total - advance)))) : '',
     list.length ? el('ul', { class: 'rows' }, list.map((i) => row(i, now)))
-      : empty(section === 'dresses' ? 'No dresses yet. Add each dress to follow it from buying to stitching to ready.' : 'Nothing yet: jewellery, return gifts, pooja things…'),
-    quickAdd({ id: `add-item-${section}`, placeholder: section === 'dresses' ? 'Add a dress' : 'Add something to buy', label: section === 'dresses' ? 'Add a dress' : 'Add something to buy',
+      : empty(words.empty),
+    quickAdd({ id: `add-item-${section}`, placeholder: words.add, label: words.add,
       add: (name) => store.queueAdd('item', { section, name }) }),
-    el('p', { class: 'hint' }, 'Tap an entry to add its price, shop or tailor.'));
+    el('p', { class: 'hint' }, words.hint));
 }
+
+/** Each section's wording. */
+const WORDS = {
+  dresses: { button: '+ Dress', plural: 'dresses', add: 'Add a dress', hint: 'Tap a dress to add its price, shop, tailor and dates.', empty: 'No dresses yet. Add each dress to follow it from buying to stitching to ready.' },
+  jewellery: { button: '+ Piece', plural: 'pieces', add: 'Add a piece of jewellery', hint: 'Tap a piece to add its price, jeweller and dates.', empty: 'No jewellery yet. Add each piece to follow it from ordering to ready.' },
+  other: { button: '+ Item', plural: 'items', add: 'Add something to buy', hint: 'Tap an entry to add its price and shop.', empty: 'Nothing yet: return gifts, pooja things, decorations…' },
+};
 
 /** @param {Item} i @param {string} now */
 function row(i, now) {

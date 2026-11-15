@@ -4,11 +4,13 @@ import { el, today, uk } from '../dom.js';
 import * as store from '../store/store.js';
 import { Model } from '../shared/model.js';
 import { empty, quickAdd, saveState } from './parts.js';
-import { taskForm } from './forms.js';
+import { taskForm, itemForm } from './forms.js';
+import { Stages } from '../shared/stages.js';
 import { toast } from './sheet.js';
 
 /**
- * To do: open to-dos by kind (Decoration selection, Dresses to buy…), soonest first; done ones folded away at the end.
+ * To do: first the shopping still to buy (ADR-014: ticking marks it Bought, or Ordered for jewellery), then open to-dos
+ * by kind (Decoration selection, Dresses to buy…), soonest first; done ones folded away at the end.
  * @param {HTMLElement} main
  */
 export function todoScreen(main) {
@@ -21,12 +23,34 @@ export function todoScreen(main) {
   main.replaceChildren(
     el('div', { class: 'title-row' }, el('h1', { class: 'screen-title' }, 'To do'),
       el('button', { class: 'button', type: 'button', onclick: () => taskForm(null) }, '+ To-do')),
-    all.length === 0 ? empty('Nothing yet: choosing the decoration, dresses to buy, booking the priest…') : '',
+    ...toBuyGroup(),
+    all.length === 0 ? empty('Nothing yet: choosing the decoration, booking the priest…') : '',
     ...kinds.flatMap((k) => [el('h2', { class: 'group-head' }, k),
       el('ul', { class: 'rows' }, open.filter((t) => t.category === k).sort(byDue).map((t) => row(t, now))),
       box(k)]),
     kinds.length ? '' : box('Other'),
     done.length ? el('details', { class: 'done-list' }, el('summary', {}, `Done (${done.length})`), el('ul', { class: 'rows' }, done.map((t) => row(t, now)))) : '');
+}
+
+/** Shopping still at To buy, from the Shopping tab. */
+function toBuyGroup() {
+  const list = store.toBuy();
+  if (!list.length) return [];
+  return [el('h2', { class: 'group-head' }, `To buy · ${list.length}`),
+    el('ul', { class: 'rows' }, list.map((i) => {
+      const next = /** @type {Stage} */ (Stages.next(i.section, 'to-buy'));
+      return el('li', { class: 'row' },
+        el('button', { class: 'done-tick', type: 'button', 'aria-pressed': 'false', 'aria-label': `${Stages.label(next)}: ${i.name}`,
+          onclick: () => {
+            store.setStage(i.item_id, next);
+            toast(`${i.name}: ${Stages.label(next)}.`, [], () => store.setStage(i.item_id, 'to-buy'));
+          } }, '✓'),
+        el('button', { class: 'row-open', type: 'button', onclick: () => (i.version === 0 ? toast('Still saving: try again in a moment.') : itemForm(i.item_id)) },
+          el('div', { class: 'row-title' }, i.name),
+          el('div', { class: 'row-sub' }, [Model.sectionLabel(i.section), i.for_whom ? `for ${i.for_whom}` : ''].filter(Boolean).join(' · ')),
+          saveState(store.rowState(i.item_id), { retry: () => store.retry(i.item_id), discard: () => store.discard(i.item_id) })));
+    })),
+    el('p', { class: 'hint' }, 'Tick when bought (jewellery: when ordered). Add these in Shopping.')];
 }
 
 /** A box adding to-dos of one kind. @param {string} kind */

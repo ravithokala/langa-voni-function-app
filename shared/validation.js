@@ -132,7 +132,7 @@ const Validation = (() => {
   function item(input) {
     const c = collector();
     const section = Model.ITEM_SECTIONS.some((s) => s.id === input.section) ? /** @type {ItemSection} */ (input.section) : null;
-    if (!section) c.add('section', 'INVALID', 'must be Dresses or Other');
+    if (!section) c.add('section', 'INVALID', 'must be Dresses, Jewellery or Other');
     const name = c.text('name', input.name, LIMITS.name, true);
     const for_whom = c.text('for_whom', input.for_whom, LIMITS.short, false);
     const vendor = c.text('vendor', input.vendor, LIMITS.short, false);
@@ -146,10 +146,11 @@ const Validation = (() => {
       else c.add('stage', 'INVALID', 'is not a stage for this section');
     }
     const dress = section === 'dresses';
+    const tracked = Stages.isTracked(section);
     const tailor = dress ? c.text('tailor', input.tailor, LIMITS.short, false) : null;
-    const given_on = dress ? c.date('given_on', input.given_on) : null;
-    const ready_by = dress ? c.date('ready_by', input.ready_by) : null;
-    if (given_on && ready_by && ready_by < given_on) c.add('ready_by', 'INVALID', 'cannot be before the day it was given');
+    const given_on = tracked ? c.date('given_on', input.given_on) : null;
+    const ready_by = tracked ? c.date('ready_by', input.ready_by) : null;
+    if (given_on && ready_by && ready_by < given_on) c.add('ready_by', 'INVALID', `cannot be before the day it was ${dress ? 'given' : 'ordered'}`);
     const note = c.text('note', input.note, LIMITS.note, false);
     return { value: { section, name, for_whom, vendor, total_paise, advance_paise, stage, tailor, given_on, ready_by, note }, errors: c.errors };
   }
