@@ -36,15 +36,16 @@ function giftsCard(s) {
   const jewellery = s.grams !== null;
   const count = `${s.rows.length} ${jewellery ? (s.rows.length === 1 ? 'piece' : 'pieces') : (s.rows.length === 1 ? 'item' : 'items')}`;
   return el('section', { class: 'card' },
-    el('div', { class: 'card-top' }, el('h2', {}, s.name), el('span', { class: 'count num' }, [s.grams ? Weight.format(s.grams) : '', count].filter(Boolean).join(' · '))),
+    el('div', { class: 'card-top' }, el('h2', {}, s.name), el('span', { class: 'count num' }, count)),
+    s.grams && Weight.formatByMetal(s.grams) ? el('p', { class: 'link-note' }, Weight.formatByMetal(s.grams)) : '',
     el('p', { class: 'link-note' }, `${jewellery ? 'Gifts' : 'Brought by others'}: not counted in the totals. From the Shopping tab: change these there.`),
     el('table', { class: 'budget-table' },
       el('thead', {}, el('tr', {}, el('th', {}, ''), jewellery ? el('th', {}, 'Weight') : '', el('th', {}, 'Value'))),
       el('tbody', {}, s.rows.map((r) => el('tr', {},
         el('td', {}, el('button', { type: 'button', onclick: () => itemForm(r.id) }, r.name,
           el('span', { class: 'vendor' }, [r.gifted_by ? `${jewellery ? 'from' : 'by'} ${r.gifted_by}` : '', r.for_whom ? `for ${r.for_whom}` : ''].filter(Boolean).join(' · ')))),
-        jewellery ? el('td', {}, r.weight_mg !== null ? Weight.format(r.weight_mg) : '—') : '', el('td', {}, rupees(r.total_paise)))),
-      el('tr', { class: 'sum' }, el('td', {}, 'Section'), jewellery ? el('td', {}, s.grams ? Weight.format(s.grams) : '—') : '', el('td', {}, rupees(s.totals.total))))));
+        jewellery ? el('td', {}, r.weight_mg !== null ? Weight.formatPiece(r.weight_mg, r.metal) : '—') : '', el('td', {}, rupees(r.total_paise)))),
+      el('tr', { class: 'sum' }, el('td', {}, 'Section'), jewellery ? el('td', {}, '') : '', el('td', {}, rupees(s.totals.total))))));
 }
 
 /** @param {BudgetSection} s @param {string} now */
@@ -52,14 +53,15 @@ function card(s, now) {
   if (s.linked && s.rows.length === 0) return '';
   if (s.gifts) return giftsCard(s);
   return el('section', { class: 'card' },
-    el('div', { class: 'card-top' }, el('h2', {}, s.name), el('span', { class: 'count num' }, [s.grams ? Weight.format(s.grams) : '', rupees(s.totals.total)].filter(Boolean).join(' · '))),
+    el('div', { class: 'card-top' }, el('h2', {}, s.name), el('span', { class: 'count num' }, rupees(s.totals.total))),
+    s.grams && Weight.formatByMetal(s.grams) ? el('p', { class: 'link-note' }, Weight.formatByMetal(s.grams)) : '',
     s.linked ? el('p', { class: 'link-note' }, 'From the Shopping tab: change these there.') : '',
     el('table', { class: 'budget-table' },
       el('thead', {}, el('tr', {}, el('th', {}, ''), el('th', {}, 'Total'), el('th', {}, 'Advance'), el('th', {}, 'Balance'))),
       el('tbody', {}, s.rows.map((r) => {
         const overdue = r.due_date && r.due_date < now && (r.balance_paise ?? 0) > 0;
         // Under the name: who a shopping item is for (RT, 2026-11-15); a budget line's due date (who to pay is not asked for).
-        const vendor = [r.for_whom ? `for ${r.for_whom}` : '', r.weight_mg !== null ? Weight.format(r.weight_mg) : ''].filter(Boolean).join(' · ') || null;
+        const vendor = [r.for_whom ? `for ${r.for_whom}` : '', r.weight_mg !== null ? Weight.formatPiece(r.weight_mg, r.metal) : ''].filter(Boolean).join(' · ') || null;
         return el('tr', {},
           el('td', {}, el('button', { type: 'button', onclick: () => (r.kind === 'item' ? itemForm(r.id) : lineForm(r.id)) }, r.name,
             vendor || r.due_date ? el('span', { class: `vendor${overdue ? ' error' : ''}` },

@@ -32,11 +32,11 @@ const Budget = (() => {
 
   /** @param {Item} item @returns {BudgetRow} */
   const fromItem = (item) => ({ kind: 'item', id: item.item_id, name: item.name, vendor: item.vendor, for_whom: item.for_whom,
-    weight_mg: item.weight_mg ?? null, gifted_by: item.gifted_by ?? null, total_paise: item.total_paise,
+    weight_mg: item.weight_mg ?? null, metal: item.section === 'jewellery' ? Model.metalOf(item) : null, gifted_by: item.gifted_by ?? null, total_paise: item.total_paise,
     advance_paise: item.advance_paise, balance_paise: Money.balance(item.total_paise, item.advance_paise), due_date: null });
 
   /** @param {BudgetLine} line @returns {BudgetRow} */
-  const fromLine = (line) => ({ kind: 'line', id: line.line_id, name: line.name, vendor: line.vendor, for_whom: null, weight_mg: null,
+  const fromLine = (line) => ({ kind: 'line', id: line.line_id, name: line.name, vendor: line.vendor, for_whom: null, weight_mg: null, metal: null,
     gifted_by: null, total_paise: line.total_paise,
     advance_paise: line.advance_paise, balance_paise: Money.balance(line.total_paise, line.advance_paise), due_date: line.due_date });
 
@@ -53,7 +53,8 @@ const Budget = (() => {
     const given = items.filter((i) => !i.deleted && Stages.isGift(i));
     const gifts = rows(given.filter((i) => i.section === 'jewellery'));
     const brought = rows(given.filter((i) => i.section !== 'jewellery'));
-    const grams = (/** @type {BudgetRow[]} */ list) => Weight.total(list.map((r) => r.weight_mg));
+    // Gold and silver are totalled apart, never added together (ADR-017).
+    const grams = (/** @type {BudgetRow[]} */ list) => Weight.byMetal(list);
     const live = lines.filter((l) => !l.deleted);
     const names = Model.orderNames(live.map((l) => l.section), Model.BUDGET_SECTIONS);
     /** @type {BudgetSection[]} */

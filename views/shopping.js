@@ -27,7 +27,8 @@ export function shoppingScreen(main, arg) {
   const total = paid.reduce((sum, i) => sum + (i.total_paise ?? 0), 0);
   const advance = paid.reduce((sum, i) => sum + (i.advance_paise ?? 0), 0);
   const notDone = list.filter((i) => !Stages.isDone(i)).length;
-  const grams = Weight.total(list.map((i) => i.weight_mg));
+  // Gold and silver totalled apart (ADR-017).
+  const grams = Weight.formatByMetal(Weight.byMetal(list.filter((i) => i.section === 'jewellery')));
 
   main.replaceChildren(
     el('div', { class: 'title-row' }, el('h1', { class: 'screen-title' }, 'Shopping'),
@@ -35,7 +36,7 @@ export function shoppingScreen(main, arg) {
     el('div', { class: 'segmented wide', role: 'group', 'aria-label': 'Section' }, tab('dresses', 'Dresses'), tab('jewellery', 'Jewellery'), tab('other', 'Other')),
     list.length ? el('p', { class: 'totals-bar' },
       el('span', {}, el('b', {}, String(list.length)), ` ${words.plural} · ${notDone} ${section === 'other' ? 'to buy' : section === 'jewellery' ? 'not ready or received' : 'not ready'}`),
-      grams ? el('span', {}, 'Weight ', el('b', {}, Weight.format(grams))) : '',
+      grams ? el('span', {}, el('b', {}, grams)) : '',
       el('span', {}, 'Total ', el('b', {}, Money.format(total))),
       el('span', {}, 'Balance ', el('b', {}, Money.format(total - advance)))) : '',
     list.length ? el('ul', { class: 'rows' }, list.map((i) => row(i, now)))
@@ -57,7 +58,7 @@ function row(i, now) {
   const late = Stages.isLate(i, now);
   const next = Stages.next(i, i.stage);
   const who = [i.for_whom ? `for ${i.for_whom}` : '', i.gifted_by ? `${i.section === 'jewellery' ? 'gift from' : 'brought by'} ${i.gifted_by}` : '', i.section === 'dresses' ? i.tailor ?? i.vendor : i.vendor,
-    i.weight_mg !== null ? Weight.format(i.weight_mg) : ''].filter(Boolean).join(' · ');
+    i.weight_mg !== null ? Weight.formatPiece(i.weight_mg, i.metal) : i.section === 'jewellery' && i.metal === 'silver' ? 'silver' : ''].filter(Boolean).join(' · ');
   const when = promised(i, now);
   const given = i.section === 'jewellery' ? 'A gift' : 'Brought by others';
   const money = Stages.isGift(i) ? (i.total_paise === null ? given : `${given} · worth ${rupees(i.total_paise)}`)

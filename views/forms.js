@@ -5,6 +5,7 @@ import * as store from '../store/store.js';
 import { Money } from '../shared/money.js';
 import { Stages } from '../shared/stages.js';
 import { Weight } from '../shared/weight.js';
+import { Model } from '../shared/model.js';
 import { openSheet, toast } from './sheet.js';
 import { field, busy } from './fields.js';
 
@@ -171,8 +172,10 @@ export function itemForm(id, section = 'dresses') {
       hint: `${jewel ? 'A gift' : 'Something brought by others'} goes Expected → Received: fill in ${jewel ? 'Gifted by' : 'Brought by'} and save, and its stages change.` },
   ];
   if (jewel) {
-    fields.splice(3, 0, { key: 'weight_mg', label: 'Weight (g)', type: 'weight', value: i?.weight_mg ?? null, half: true },
-      { key: 'gifted_by', label: 'Gifted by', type: 'text', value: i?.gifted_by ?? '', half: true });
+    // Gold unless chosen (ADR-017): gold and silver weights are never added together.
+    fields.splice(3, 0, { key: 'metal', label: 'Metal', type: 'select', value: i?.metal ?? 'gold', options: Model.METALS.map((m) => /** @type {[string, string]} */ ([m.id, m.label])), half: true },
+      { key: 'weight_mg', label: 'Weight (g)', type: 'weight', value: i?.weight_mg ?? null, half: true },
+      { key: 'gifted_by', label: 'Gifted by', type: 'text', value: i?.gifted_by ?? '' });
   } else {
     // Brought by someone else (ADR-016): not bought by the family, so not in To do or the budget's totals.
     fields.splice(3, 0, { key: 'gifted_by', label: 'Brought by (if someone else brings it)', type: 'text', value: i?.gifted_by ?? '' });

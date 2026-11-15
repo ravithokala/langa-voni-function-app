@@ -144,6 +144,13 @@ const Validation = (() => {
     // Jewellery: Gifted by; anything else: Brought by (ADR-016). Either way: Expected → Received, not counted in the budget.
     const gifted_by = c.text('gifted_by', input.gifted_by, LIMITS.short, false);
     const weight_mg = jewel ? weight(c, input.weight_mg) : null;
+    /** @type {Metal|null} */
+    let metal = null;
+    if (jewel) {
+      metal = 'gold';
+      if (input.metal === 'silver' || input.metal === 'gold') metal = input.metal;
+      else if (input.metal !== undefined && input.metal !== null && input.metal !== '') c.add('metal', 'INVALID', 'must be Gold or Silver');
+    }
     const shape = { section, gifted_by };
     /** @type {Stage} */
     let stage = Stages.forItem(shape)[0].id;
@@ -160,7 +167,7 @@ const Validation = (() => {
     const ready_by = tracked ? c.date('ready_by', input.ready_by) : null;
     if (given_on && ready_by && ready_by < given_on) c.add('ready_by', 'INVALID', `cannot be before the day it was ${dress ? 'given' : 'ordered'}`);
     const note = c.text('note', input.note, LIMITS.note, false);
-    return { value: { section, name, for_whom, vendor, total_paise, advance_paise, stage, tailor, given_on, ready_by, note, weight_mg, gifted_by }, errors: c.errors };
+    return { value: { section, name, for_whom, vendor, total_paise, advance_paise, stage, tailor, given_on, ready_by, note, weight_mg, gifted_by, metal }, errors: c.errors };
   }
 
   /** A weight typed in grams, kept as milligrams. @param {ReturnType<typeof collector>} c @param {unknown} value @returns {number|null} */

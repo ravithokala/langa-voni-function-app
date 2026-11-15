@@ -4,7 +4,7 @@
 
 /**
  * Jewellery weights (ADR-015). Kept as whole milligrams; typed and shown in grams, up to three decimals: '24.5' or
- * '24.5 g' → 24500; 24500 → '24.5 g'.
+ * '24.5 g' → 24500; 24500 → '24.5 g'. Gold and silver are never added together (ADR-017): totals are per metal.
  *
  * Shared with the phone app: scripts/sync-shared.js copies this file to pwa/shared/.
  */
@@ -42,7 +42,23 @@ const Weight = (() => {
   /** The total of the weights given, ignoring pieces with none. @param {Array<number|null|undefined>} list */
   const total = (list) => list.reduce((/** @type {number} */ sum, mg) => sum + (mg ?? 0), 0);
 
-  return { MAX_MG, parse, toInput, format, total };
+  /**
+   * Total weight per metal; pieces with no weight are left out.
+   * @param {ReadonlyArray<{ weight_mg?: number|null, metal?: string|null }>} pieces @returns {{ gold: number, silver: number }}
+   */
+  function byMetal(pieces) {
+    const out = { gold: 0, silver: 0 };
+    for (const p of pieces) out[p.metal === 'silver' ? 'silver' : 'gold'] += p.weight_mg ?? 0;
+    return out;
+  }
+
+  /** 'Gold 52.75 g · Silver 85 g', leaving out a metal with nothing; '' when both are nothing. @param {{ gold: number, silver: number }|null|undefined} w */
+  const formatByMetal = (w) => (w ? [w.gold ? `Gold ${format(w.gold)}` : '', w.silver ? `Silver ${format(w.silver)}` : ''].filter(Boolean).join(' · ') : '');
+
+  /** '12.5 g gold'. @param {number|null|undefined} mg @param {string|null|undefined} metal */
+  const formatPiece = (mg, metal) => (mg === null || mg === undefined ? '' : `${format(mg)} ${metal === 'silver' ? 'silver' : 'gold'}`);
+
+  return { MAX_MG, parse, toInput, format, total, byMetal, formatByMetal, formatPiece };
 })();
 
 export { Weight };
