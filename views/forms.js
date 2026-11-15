@@ -188,7 +188,6 @@ export function lineForm(id, section = '') {
     fields: [
       { key: 'section', label: 'Section', type: 'text', value: l?.section ?? section, suggestions: store.budgetSections() },
       { key: 'name', label: 'What', type: 'text', value: l?.name ?? '' },
-      { key: 'vendor', label: 'Who to pay', type: 'text', value: l?.vendor ?? '' },
       { key: 'total_paise', label: 'Total price', type: 'money', value: l?.total_paise ?? null, half: true },
       { key: 'advance_paise', label: 'Advance given', type: 'money', value: l?.advance_paise ?? null, half: true },
       { key: 'due_date', label: 'Balance due by', type: 'date', value: l?.due_date ?? '' },

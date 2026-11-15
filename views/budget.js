@@ -36,10 +36,12 @@ function card(s, now) {
       el('thead', {}, el('tr', {}, el('th', {}, ''), el('th', {}, 'Total'), el('th', {}, 'Advance'), el('th', {}, 'Balance'))),
       el('tbody', {}, s.rows.map((r) => {
         const overdue = r.due_date && r.due_date < now && (r.balance_paise ?? 0) > 0;
+        // Under the name: a shopping item's shop; a budget line's due date (who to pay is not asked for: RT, 2026-11-15).
+        const vendor = r.kind === 'item' ? r.vendor : null;
         return el('tr', {},
           el('td', {}, el('button', { type: 'button', onclick: () => (r.kind === 'item' ? itemForm(r.id) : lineForm(r.id)) }, r.name,
-            r.vendor || r.due_date ? el('span', { class: `vendor${overdue ? ' error' : ''}` },
-              [r.vendor ?? '', r.due_date ? `${overdue ? 'overdue' : 'due'} ${uk(r.due_date)}` : ''].filter(Boolean).join(' · ')) : '')),
+            vendor || r.due_date ? el('span', { class: `vendor${overdue ? ' error' : ''}` },
+              [vendor ?? '', r.due_date ? `${overdue ? 'overdue' : 'due'} ${uk(r.due_date)}` : ''].filter(Boolean).join(' · ')) : '')),
           el('td', {}, rupees(r.total_paise)), el('td', {}, rupees(r.advance_paise)), el('td', {}, rupees(r.balance_paise)));
       }),
       el('tr', { class: 'sum' }, el('td', {}, 'Section'), el('td', {}, rupees(s.totals.total)), el('td', {}, rupees(s.totals.advance)), el('td', {}, rupees(s.totals.balance))))),
