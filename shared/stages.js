@@ -4,9 +4,9 @@
 
 /**
  * Where a shopping item is (ADR-008). A dress goes To buy → Bought → Given for stitching → Trial → Ready → Collected;
- * a jewellery piece To buy → Ordered → Ready → Collected (ADR-014), or, when it is a gift (Gifted by), Expected →
- * Received (ADR-015); anything else To buy → Bought. Tapping a stage moves it one step on. A dress or a bought piece
- * of jewellery is done once Ready, a gift once Received, anything else once Bought.
+ * a jewellery piece To buy → Ordered → Ready → Collected (ADR-014); anything else To buy → Bought. Anything someone
+ * else gives or brings (Gifted by / Brought by: ADR-015, ADR-016) goes Expected → Received instead. Tapping a stage moves
+ * it one step on. A dress or a bought piece of jewellery is done once Ready, a gift once Received, anything else once Bought.
  *
  * Shared with the phone app: scripts/sync-shared.js copies this file to pwa/shared/.
  */
@@ -30,20 +30,20 @@ const Stages = (() => {
   ]);
   const ALL = Object.freeze([...DRESS, JEWELLERY[1], ...GIFT]);
 
-  /** A piece of jewellery someone gives. @param {{ section?: string|null, gifted_by?: string|null }} item */
-  const isGift = (item) => item.section === 'jewellery' && Boolean(item.gifted_by);
+  /** Given or brought by someone else (jewellery: Gifted by; anything else: Brought by). @param {{ section?: string|null, gifted_by?: string|null }} item */
+  const isGift = (item) => Boolean(item.gifted_by);
 
   /**
-   * The stages of a section; jewellery that is a gift has its own two.
+   * The stages of a section; anything given or brought by others has its own two.
    * @param {ItemSection|string|null|undefined} section @param {boolean} [gift]
    */
-  const forSection = (section, gift = false) => (section === 'dresses' ? DRESS : section === 'jewellery' ? (gift ? GIFT : JEWELLERY) : OTHER);
+  const forSection = (section, gift = false) => (gift ? GIFT : section === 'dresses' ? DRESS : section === 'jewellery' ? JEWELLERY : OTHER);
 
   /** @param {{ section?: string|null, gifted_by?: string|null }} item */
   const forItem = (item) => forSection(item.section, isGift(item));
 
-  /** Followed from order to ready, with a promised-by date (dresses, and jewellery that is bought). @param {{ section?: string|null, gifted_by?: string|null }} item */
-  const isTracked = (item) => item.section === 'dresses' || (item.section === 'jewellery' && !isGift(item));
+  /** Followed from order to ready, with a promised-by date (dresses and jewellery, unless given or brought by others). @param {{ section?: string|null, gifted_by?: string|null }} item */
+  const isTracked = (item) => !isGift(item) && (item.section === 'dresses' || item.section === 'jewellery');
 
   /** @param {ItemSection|string|null|undefined} section @param {unknown} stage @param {boolean} [gift] @returns {stage is Stage} */
   const isValid = (section, stage, gift = false) => forSection(section, gift).some((s) => s.id === stage);

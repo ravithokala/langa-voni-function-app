@@ -7,9 +7,10 @@ import { Weight } from './weight.js';
 import { Stages } from './stages.js';
 
 /**
- * The budget (ADR-008, ADR-015): three sections come straight from the shopping items: Shopping (dresses and other
- * things), Jewellery (pieces bought) and Gifted jewellery (pieces given: listed with who gave them and their weight, but
- * not counted in the totals, as no money is spent). Then each budget section (the suggested ones in their order, then
+ * The budget (ADR-008, ADR-015, ADR-016): four sections come straight from the shopping items: Shopping (dresses and
+ * other things), Jewellery (pieces bought), Gifted jewellery (pieces given: who gave them and their weight) and Brought by
+ * others (dresses and other things someone else brings). The last two are listed but not counted in the totals, as no
+ * money is spent. Then each budget section (the suggested ones in their order, then
  * the rest A–Z). Every line has a total, an advance given and a balance; a line with no total yet counts as nothing
  * and is flagged.
  *
@@ -49,7 +50,9 @@ const Budget = (() => {
     const rows = (/** @type {Item[]} */ list) => list.map(fromItem).sort(byName);
     const shopping = rows(bought.filter((i) => i.section !== 'jewellery'));
     const jewellery = rows(bought.filter((i) => i.section === 'jewellery'));
-    const gifts = rows(items.filter((i) => !i.deleted && Stages.isGift(i)));
+    const given = items.filter((i) => !i.deleted && Stages.isGift(i));
+    const gifts = rows(given.filter((i) => i.section === 'jewellery'));
+    const brought = rows(given.filter((i) => i.section !== 'jewellery'));
     const grams = (/** @type {BudgetRow[]} */ list) => Weight.total(list.map((r) => r.weight_mg));
     const live = lines.filter((l) => !l.deleted);
     const names = Model.orderNames(live.map((l) => l.section), Model.BUDGET_SECTIONS);
@@ -58,6 +61,7 @@ const Budget = (() => {
       { name: Model.SHOPPING_SECTION, linked: true, counted: true, gifts: false, grams: null, rows: shopping, totals: totals(shopping) },
       { name: Model.JEWELLERY_SECTION, linked: true, counted: true, gifts: false, grams: grams(jewellery), rows: jewellery, totals: totals(jewellery) },
       { name: Model.GIFTS_SECTION, linked: true, counted: false, gifts: true, grams: grams(gifts), rows: gifts, totals: totals(gifts) },
+      { name: Model.BROUGHT_SECTION, linked: true, counted: false, gifts: true, grams: null, rows: brought, totals: totals(brought) },
     ];
     for (const name of names) {
       const list = live.filter((l) => l.section === name).map(fromLine).sort(byName);

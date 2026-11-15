@@ -36,7 +36,8 @@ const Model = (() => {
   const SHOPPING_SECTION = 'Shopping';
   const JEWELLERY_SECTION = 'Jewellery';
   const GIFTS_SECTION = 'Gifted jewellery';
-  const LINKED_SECTIONS = Object.freeze([SHOPPING_SECTION, JEWELLERY_SECTION, GIFTS_SECTION]);
+  const BROUGHT_SECTION = 'Brought by others';
+  const LINKED_SECTIONS = Object.freeze([SHOPPING_SECTION, JEWELLERY_SECTION, GIFTS_SECTION, BROUGHT_SECTION]);
   /** @param {string|null|undefined} name */
   const isLinkedSection = (name) => LINKED_SECTIONS.some((s) => s.toLowerCase() === String(name ?? '').trim().toLowerCase());
   /** Suggested budget sections, in the order shown; any other name is allowed too. */
@@ -60,7 +61,7 @@ const Model = (() => {
   }
 
   return { SETTINGS_FIELDS, CITY_FIELDS, GUEST_FIELDS, ITEM_FIELDS, BUDGET_FIELDS, TASK_FIELDS, FUNCTION_ID, ITEM_SECTIONS,
-    SHOPPING_SECTION, JEWELLERY_SECTION, GIFTS_SECTION, LINKED_SECTIONS, isLinkedSection, BUDGET_SECTIONS, TASK_CATEGORIES, sectionLabel, orderNames };
+    SHOPPING_SECTION, JEWELLERY_SECTION, GIFTS_SECTION, BROUGHT_SECTION, LINKED_SECTIONS, isLinkedSection, BUDGET_SECTIONS, TASK_CATEGORIES, sectionLabel, orderNames };
 })();
 
 export { Model };

@@ -28,18 +28,23 @@ export function budgetScreen(main) {
     sections.length === 1 && sections[0].rows.length === 0 ? empty('Add the venue, catering, decoration and the rest with + Add. Shopping appears here by itself.') : '');
 }
 
-/** Gifted jewellery: who gave each piece and its weight; its value for reference, not in the totals. @param {BudgetSection} s */
+/**
+ * Gifted jewellery (who gave each piece and its weight) and Brought by others (ADR-016): listed with their value for
+ * reference, not in the totals. @param {BudgetSection} s
+ */
 function giftsCard(s) {
+  const jewellery = s.grams !== null;
+  const count = `${s.rows.length} ${jewellery ? (s.rows.length === 1 ? 'piece' : 'pieces') : (s.rows.length === 1 ? 'item' : 'items')}`;
   return el('section', { class: 'card' },
-    el('div', { class: 'card-top' }, el('h2', {}, s.name), el('span', { class: 'count num' }, [s.grams ? Weight.format(s.grams) : '', `${s.rows.length} ${s.rows.length === 1 ? 'piece' : 'pieces'}`].filter(Boolean).join(' · '))),
-    el('p', { class: 'link-note' }, 'Gifts: not counted in the totals. From the Shopping tab: change these there.'),
+    el('div', { class: 'card-top' }, el('h2', {}, s.name), el('span', { class: 'count num' }, [s.grams ? Weight.format(s.grams) : '', count].filter(Boolean).join(' · '))),
+    el('p', { class: 'link-note' }, `${jewellery ? 'Gifts' : 'Brought by others'}: not counted in the totals. From the Shopping tab: change these there.`),
     el('table', { class: 'budget-table' },
-      el('thead', {}, el('tr', {}, el('th', {}, ''), el('th', {}, 'Weight'), el('th', {}, 'Value'))),
+      el('thead', {}, el('tr', {}, el('th', {}, ''), jewellery ? el('th', {}, 'Weight') : '', el('th', {}, 'Value'))),
       el('tbody', {}, s.rows.map((r) => el('tr', {},
         el('td', {}, el('button', { type: 'button', onclick: () => itemForm(r.id) }, r.name,
-          el('span', { class: 'vendor' }, [r.gifted_by ? `from ${r.gifted_by}` : '', r.for_whom ? `for ${r.for_whom}` : ''].filter(Boolean).join(' · ')))),
-        el('td', {}, r.weight_mg !== null ? Weight.format(r.weight_mg) : '—'), el('td', {}, rupees(r.total_paise)))),
-      el('tr', { class: 'sum' }, el('td', {}, 'Section'), el('td', {}, s.grams ? Weight.format(s.grams) : '—'), el('td', {}, rupees(s.totals.total))))));
+          el('span', { class: 'vendor' }, [r.gifted_by ? `${jewellery ? 'from' : 'by'} ${r.gifted_by}` : '', r.for_whom ? `for ${r.for_whom}` : ''].filter(Boolean).join(' · ')))),
+        jewellery ? el('td', {}, r.weight_mg !== null ? Weight.format(r.weight_mg) : '—') : '', el('td', {}, rupees(r.total_paise)))),
+      el('tr', { class: 'sum' }, el('td', {}, 'Section'), jewellery ? el('td', {}, s.grams ? Weight.format(s.grams) : '—') : '', el('td', {}, rupees(s.totals.total))))));
 }
 
 /** @param {BudgetSection} s @param {string} now */

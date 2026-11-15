@@ -141,7 +141,8 @@ const Validation = (() => {
     const advance_paise = c.money('advance_paise', input.advance_paise);
     checkAdvance(c, total_paise, advance_paise);
     const jewel = section === 'jewellery';
-    const gifted_by = jewel ? c.text('gifted_by', input.gifted_by, LIMITS.short, false) : null;
+    // Jewellery: Gifted by; anything else: Brought by (ADR-016). Either way: Expected → Received, not counted in the budget.
+    const gifted_by = c.text('gifted_by', input.gifted_by, LIMITS.short, false);
     const weight_mg = jewel ? weight(c, input.weight_mg) : null;
     const shape = { section, gifted_by };
     /** @type {Stage} */
@@ -149,7 +150,7 @@ const Validation = (() => {
     if (input.stage !== undefined && input.stage !== null && input.stage !== '') {
       if (Stages.isValid(section, input.stage, Stages.isGift(shape))) stage = input.stage;
       // A piece that has just become (or stopped being) a gift keeps the nearest stage of its new kind.
-      else if (jewel && Stages.isValid(section, input.stage, !Stages.isGift(shape))) stage = Stages.fit(shape, input.stage);
+      else if (Stages.isValid(section, input.stage, !Stages.isGift(shape))) stage = Stages.fit(shape, input.stage);
       else c.add('stage', 'INVALID', 'is not a stage for this section');
     }
     const dress = section === 'dresses';

@@ -168,11 +168,14 @@ export function itemForm(id, section = 'dresses') {
     { key: 'total_paise', label: 'Total price', type: 'money', value: i?.total_paise ?? null, half: true },
     { key: 'advance_paise', label: 'Advance given', type: 'money', value: i?.advance_paise ?? null, half: true },
     { key: 'stage', label: 'Where it is', type: 'stage', value: i?.stage ?? 'to-buy', section: s, gift: Boolean(i && Stages.isGift(i)),
-      hint: jewel ? 'A gift goes Expected → Received; fill in Gifted by and save, and its stages change.' : undefined },
+      hint: `${jewel ? 'A gift' : 'Something brought by others'} goes Expected → Received: fill in ${jewel ? 'Gifted by' : 'Brought by'} and save, and its stages change.` },
   ];
   if (jewel) {
     fields.splice(3, 0, { key: 'weight_mg', label: 'Weight (g)', type: 'weight', value: i?.weight_mg ?? null, half: true },
       { key: 'gifted_by', label: 'Gifted by', type: 'text', value: i?.gifted_by ?? '', half: true });
+  } else {
+    // Brought by someone else (ADR-016): not bought by the family, so not in To do or the budget's totals.
+    fields.splice(3, 0, { key: 'gifted_by', label: 'Brought by (if someone else brings it)', type: 'text', value: i?.gifted_by ?? '' });
   }
   if (dress) {
     fields.push({ key: 'tailor', label: 'Tailor', type: 'text', value: i?.tailor ?? '' },

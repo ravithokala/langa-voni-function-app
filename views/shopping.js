@@ -56,10 +56,11 @@ const WORDS = {
 function row(i, now) {
   const late = Stages.isLate(i, now);
   const next = Stages.next(i, i.stage);
-  const who = [i.for_whom ? `for ${i.for_whom}` : '', i.gifted_by ? `gift from ${i.gifted_by}` : '', i.section === 'dresses' ? i.tailor ?? i.vendor : i.vendor,
+  const who = [i.for_whom ? `for ${i.for_whom}` : '', i.gifted_by ? `${i.section === 'jewellery' ? 'gift from' : 'brought by'} ${i.gifted_by}` : '', i.section === 'dresses' ? i.tailor ?? i.vendor : i.vendor,
     i.weight_mg !== null ? Weight.format(i.weight_mg) : ''].filter(Boolean).join(' · ');
   const when = promised(i, now);
-  const money = Stages.isGift(i) ? (i.total_paise === null ? 'A gift' : `A gift · worth ${rupees(i.total_paise)}`)
+  const given = i.section === 'jewellery' ? 'A gift' : 'Brought by others';
+  const money = Stages.isGift(i) ? (i.total_paise === null ? given : `${given} · worth ${rupees(i.total_paise)}`)
     : i.total_paise === null && i.advance_paise === null ? 'No price yet'
     : `${rupees(i.total_paise)} · advance ${rupees(i.advance_paise)} · balance ${rupees(Money.balance(i.total_paise, i.advance_paise))}`;
   return el('li', { class: `row${late ? ' is-late' : Stages.isDone(i) ? ' is-done' : ''}` },
