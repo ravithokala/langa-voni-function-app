@@ -1,6 +1,7 @@
 // @ts-check
 
 import { el } from '../dom.js';
+import { useToast } from './parts.js';
 
 /**
  * A sheet that slides over the screen (a native <dialog>, so Back and Escape close it).
@@ -56,3 +57,5 @@ export function toast(text, warnings = [], undo, undoLabel = 'Undo') {
   clearTimeout(toastTimer);
   toastTimer = window.setTimeout(() => box.remove(), undo ? UNDO_MS : warnings.length ? 9000 : 3000);
 }
+
+useToast((text) => toast(text));

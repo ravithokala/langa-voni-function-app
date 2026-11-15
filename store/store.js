@@ -9,13 +9,17 @@ import { Guests } from '../shared/guests.js';
 import { Budget } from '../shared/budget.js';
 import { Dashboard } from '../shared/dashboard.js';
 import { Stages } from '../shared/stages.js';
+import * as Outbox from './outbox.js';
 
 /**
  * The app's data: the sheet is the master copy; this phone keeps a copy in IndexedDB so the app opens at once and can be
- * viewed offline. Saving happens only online, straight to the server: each change is checked here first (the server's
- * own rules), sent, and the rows the server returns replace this phone's copies. Offline, saving says so. The copy
+ * viewed offline. Each change is checked here first (the server's own rules). Adds from the quick boxes and the quick
+ * taps (Informed, Invited, a stage, a to-do done) go into a queue kept on the phone (ADR-013, store/outbox.js): they show
+ * at once and are sent one at a time, in order, also after the app was closed or the signal lost. Changes made in a
+ * form are sent straight away and wait for the answer. The rows the server returns replace this phone's copies. The copy
  * refreshes on opening, on returning to the app, when the connection returns, and every five minutes (to pick up the
- * others' changes). A refresh is always the whole data: it is small.
+ * others' changes). A refresh is always the whole data: it is small; it never takes away a change saved while it ran,
+ * nor one still waiting in the queue.
  */
 
 /** @typedef {'settings'|'cities'|'guests'|'items'|'budget'|'tasks'} Table */
@@ -52,11 +56,19 @@ const changed = () => listeners.forEach((fn) => fn());
 /** Redraws the screen (after something only the screen knows about, such as a tap that has finished). */
 export const touch = () => changed();
 
-/** @param {Partial<ChangedRows>} rows */
+/** Rows saves have answered with since the running refresh began: its answer, read before, must not undo them. */
+/** @type {Array<{ table: Table, row: any }>} */
+let savedSincePull = [];
+
+/** Rows a save answered with. @param {Partial<ChangedRows>} rows */
 function applyRows(rows) {
   for (const table of TABLES) {
-    for (const row of /** @type {any[]} */ (rows[table] ?? [])) /** @type {any} */ (data[table])[row[ID_FIELD[table]]] = row;
+    for (const row of /** @type {any[]} */ (rows[table] ?? [])) {
+      /** @type {any} */ (data[table])[row[ID_FIELD[table]]] = row;
+      if (running) savedSincePull.push({ table, row });
+    }
   }
+  showQueued();
 }
 
 /** @param {ChangedRows} rows */
@@ -73,6 +85,7 @@ export async function load() {
     saved = await db.loadAll();
   }
   replaceAll(saved.rows);
+  showQueued();
   status.user = saved.meta.user ?? '';
   status.users = saved.meta.users ?? [];
   status.lastSynced = saved.meta.lastSynced ?? null;
@@ -196,14 +209,153 @@ export function saveSettings(fields) {
   return send('settings.save', { base_version: data.settings[Model.FUNCTION_ID]?.version ?? 0, fields });
 }
 
-/** Informed or Invited, one tap. @param {string} id @param {'informed'|'invited'} field @param {boolean} value */
-export const markGuest = (id, field, value) => send('guest.mark', { id, base_version: versionOf('guest', id), [field]: value });
+// ---- The queue of changes kept on the phone (ADR-013) ----
 
-/** A shopping item's next stage, or the stage given. @param {string} id @param {Stage} [stage] */
-export const advanceItem = (id, stage) => send('item.advance', { id, base_version: versionOf('item', id), stage });
+const QUEUE_KEY = 'lv.outbox';
+/** @type {import('./outbox.js').Job[]} */
+let queue = [];
+try { queue = Outbox.parse(localStorage.getItem(QUEUE_KEY)); } catch (e) { /* none kept */ }
+/** The key of the change on its way to the server. @type {string|null} */
+let sending = null;
+/** Whether the app is signed in and may send (set by keepInStep). */
+let sendingAllowed = false;
 
-/** @param {string} id @param {boolean} done */
-export const markTask = (id, done) => send('task.done', { id, base_version: versionOf('task', id), done });
+/** @type {Set<(message: string) => void>} */
+const noticeListeners = new Set();
+/** Called with a message when a queued tap was refused and taken back. @param {(message: string) => void} fn */
+export const onNotice = (fn) => { noticeListeners.add(fn); };
+
+function keepQueue() {
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(queue)); } catch (e) { /* kept in memory only */ }
+}
+
+/** Shows every waiting change on the phone's copy (new rows, ticks, stages). */
+function showQueued() {
+  for (const job of queue) {
+    const table = /** @type {Table} */ (Outbox.TABLE[job.kind]);
+    const shown = Outbox.overlay(job, /** @type {any} */ (data[table])[job.rowId]);
+    if (shown) /** @type {any} */ (data[table])[job.rowId] = shown;
+  }
+}
+
+/** @param {import('./outbox.js').Job} job */
+function add(job) {
+  queue = Outbox.enqueue(queue, job, sending);
+  keepQueue();
+  showQueued();
+  changed();
+  flush();
+}
+
+const newKey = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
+/**
+ * Adds a family, a dress or item, or a to-do at once, saved behind. Checked here first (the server's own rules).
+ * @param {'guest'|'item'|'task'} kind @param {Record<string, unknown>} fields
+ * @returns {{ ok: true, id: string } | { ok: false, errors: Issue[] }}
+ */
+export function queueAdd(kind, fields) {
+  const checked = CHECKS[kind](fields, null);
+  if (checked.errors.length) return { ok: false, errors: checked.errors };
+  const id = crypto.randomUUID();
+  const row = { .../** @type {any} */ (checked).value, [Outbox.ID_FIELD[kind]]: id, deleted: false, version: 0, updated_at: null, updated_by: status.user || null };
+  add({ type: 'add', key: newKey(), kind, rowId: id, fields, row });
+  return { ok: true, id };
+}
+
+/** Informed or Invited, one tap: shown at once, saved behind. @param {string} id @param {'informed'|'invited'} field @param {boolean} value */
+export const markGuest = (id, field, value) => add({ type: 'mark', key: newKey(), kind: 'guest', rowId: id, field, value });
+
+/** A shopping item to a stage: shown at once, saved behind. @param {string} id @param {Stage} stage */
+export const setStage = (id, stage) => add({ type: 'stage', key: newKey(), kind: 'item', rowId: id, stage });
+
+/** A to-do done or not: shown at once, saved behind. @param {string} id @param {boolean} done */
+export const markTask = (id, done) => add({ type: 'done', key: newKey(), kind: 'task', rowId: id, done });
+
+/**
+ * Whether a row has changes waiting: 'saving', a message if its add was refused (Not saved), or null.
+ * @param {string} id @returns {null | 'saving' | { failed: string }}
+ */
+export function rowState(id) {
+  const jobs = queue.filter((j) => j.rowId === id);
+  const failed = jobs.find((j) => j.failed);
+  if (failed) return { failed: /** @type {string} */ (failed.failed) };
+  return jobs.length ? 'saving' : null;
+}
+
+/** How many changes are waiting, and how many of those were refused. */
+export const queued = () => ({ waiting: queue.filter((j) => !j.failed).length, failed: queue.filter((j) => j.failed).length });
+
+/** Sends a refused add again (after changing nothing, or once the problem is fixed elsewhere). @param {string} id */
+export function retry(id) {
+  for (const j of queue) if (j.rowId === id) { j.failed = null; j.tries = 0; }
+  keepQueue();
+  changed();
+  flush();
+}
+
+/** Gives up a refused add: it leaves the phone. @param {string} id */
+export function discard(id) {
+  const jobs = queue.filter((j) => j.rowId === id);
+  queue = queue.filter((j) => j.rowId !== id);
+  for (const j of jobs) {
+    const table = /** @type {any} */ (data[/** @type {Table} */ (Outbox.TABLE[j.kind])]);
+    if (j.type === 'add' && table[id] && table[id].version === 0) delete table[id];
+  }
+  keepQueue();
+  changed();
+}
+
+/** @type {Promise<void>|null} */
+let flushing = null;
+
+/** Sends the waiting changes, one at a time, in order. A call while it runs shares it. */
+export function flush() {
+  if (!flushing) flushing = drain().finally(() => { flushing = null; });
+  return flushing;
+}
+
+/** @param {string} kind @param {string} id */
+const versionNow = (kind, id) => /** @type {any} */ (data[/** @type {Table} */ (Outbox.TABLE[/** @type {import('./outbox.js').Kind} */ (kind)])])[id]?.version ?? 0;
+
+async function drain() {
+  for (;;) {
+    const job = queue.find((j) => !j.failed);
+    if (!job || !sendingAllowed || !navigator.onLine) return;
+    const { action, payload } = Outbox.request(job, versionNow);
+    sending = job.key;
+    /** @type {import('../api.js').ApiResponse} */
+    let answer;
+    try {
+      answer = await call(action, payload);
+    } catch (e) {
+      sending = null;
+      // No answer: left in the queue and sent again on the next refresh, return to the app, or reconnecting. An add that
+      // gets no answer three times running is shown as Not saved, with Retry.
+      job.tries = (job.tries ?? 0) + 1;
+      if (!isOffline(e) && job.type === 'add' && job.tries >= 3) job.failed = `${e instanceof Error ? e.message : String(e)}`;
+      keepQueue();
+      changed();
+      return;
+    }
+    sending = null;
+    if (answer.data?.rows) {
+      applyRows(answer.data.rows);
+      await db.saveRows(answer.data.rows);
+    }
+    const o = Outbox.outcome(job, answer);
+    if (o.kind === 'saved' || o.kind === 'dropped') queue = queue.filter((j) => j.key !== job.key);
+    else if (o.kind === 'resend') job.conflicts = (job.conflicts ?? 0) + 1;
+    else job.failed = o.message;
+    keepQueue();
+    if (o.kind === 'dropped') {
+      noticeListeners.forEach((fn) => fn(`Not saved: ${o.message}`));
+      refresh().catch(() => { /* shown in the header */ });
+    }
+    showQueued();
+    changed();
+  }
+}
 
 // ---- Refreshing ----
 
@@ -217,6 +369,7 @@ export function refresh() {
 }
 
 async function run() {
+  savedSincePull = [];
   status.refreshing = true;
   changed();
   try {
@@ -224,15 +377,23 @@ async function run() {
     if (!r.ok) throw new Error(r.errors.map((e) => e.message).join('; '));
     const pulled = r.data;
     replaceAll(pulled);
+    // Saves answered while this refresh was on its way are newer than what it read: keep them.
+    for (const { table, row } of savedSincePull) {
+      const now = /** @type {any} */ (data[table])[row[ID_FIELD[table]]];
+      if (!now || now.version < row.version) /** @type {any} */ (data[table])[row[ID_FIELD[table]]] = row;
+    }
+    showQueued();
     await db.saveRows(pulled, { replace: true });
     Object.assign(status, { user: pulled.user, users: pulled.users, sheetUrl: pulled.sheet_url, lastSynced: Date.now(), error: null, online: true, timing: { ...lastTiming } });
     await db.setMeta({ user: status.user, users: status.users, lastSynced: status.lastSynced, sheetUrl: status.sheetUrl });
+    flush();
   } catch (e) {
     status.online = !isOffline(e);
     status.error = status.online ? (e instanceof Error ? e.message : String(e)) : null;
     throw e;
   } finally {
     status.refreshing = false;
+    savedSincePull = [];
     changed();
   }
 }
@@ -240,6 +401,8 @@ async function run() {
 /** Forgets everything on this phone (signing out). */
 export async function forget() {
   await db.clearAll();
+  queue = [];
+  keepQueue();
   for (const table of TABLES) /** @type {any} */ (data)[table] = {};
   Object.assign(status, { user: '', users: [], lastSynced: null, error: null, sheetUrl: null });
   changed();
@@ -247,7 +410,9 @@ export async function forget() {
 
 /** Keeps the copy current: when the connection returns, when the app is reopened, and every five minutes. */
 export function keepInStep() {
-  const attempt = () => { if (navigator.onLine) refresh().catch(() => { /* shown in the header */ }); };
+  sendingAllowed = true;
+  flush();
+  const attempt = () => { if (navigator.onLine) { flush(); refresh().catch(() => { /* shown in the header */ }); } };
   window.addEventListener('online', () => { status.online = true; attempt(); });
   window.addEventListener('offline', () => { status.online = false; changed(); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') attempt(); });

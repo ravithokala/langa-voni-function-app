@@ -17,6 +17,7 @@ import { shoppingScreen } from './views/shopping.js';
 import { budgetScreen } from './views/budget.js';
 import { todoScreen } from './views/todo.js';
 import { more } from './views/more.js';
+import { toast } from './views/sheet.js';
 
 /**
  * Langa Voni Function. Starts the app, signs in, loads this phone's copy, keeps it in step with the sheet, and sends
@@ -42,12 +43,24 @@ function show() {
   if (!signedIn) return;
   const { screen, arg } = route();
   const main = $('main');
+  // A redraw (a save answered, a refresh) keeps what the quick boxes hold and where the cursor is, so typing goes on.
+  const active = /** @type {HTMLInputElement|null} */ (document.activeElement instanceof HTMLInputElement && main.contains(document.activeElement) && document.activeElement.hasAttribute('data-keep') ? document.activeElement : null);
+  const caret = active ? active.selectionStart : null;
+  const drafts = new Map([...main.querySelectorAll('input[data-keep]')].map((i) => [i.id, /** @type {HTMLInputElement} */ (i).value]));
   if (screen === 'home') home(main);
   else if (screen === 'guests') guestsScreen(main);
   else if (screen === 'shopping') shoppingScreen(main, arg);
   else if (screen === 'budget') budgetScreen(main);
   else if (screen === 'todo') todoScreen(main);
   else more(main, { signOut, signOutEverywhere });
+  for (const [id, value] of drafts) {
+    const box = /** @type {HTMLInputElement|null} */ (document.getElementById(id));
+    if (box && value && !box.value) box.value = value;
+  }
+  if (active) {
+    const box = /** @type {HTMLInputElement|null} */ (document.getElementById(active.id));
+    if (box) { box.focus(); if (caret !== null) box.setSelectionRange(caret, caret); }
+  }
   document.querySelectorAll('#tabs a').forEach((a) => a.setAttribute('aria-current', String(a.getAttribute('data-tab') === screen)));
   showSyncState();
 }
@@ -64,11 +77,14 @@ function showSyncState() {
   $('refresh').hidden = false;
   const badge = $('sync');
   const s = store.status;
-  const text = !s.online ? 'Offline' : s.error ? 'Not updated' : '';
+  const q = store.queued();
+  // Changes kept on the phone (ADR-013): how many are waiting, or refused.
+  const text = q.failed ? `${q.failed} not saved` : !s.online ? (q.waiting ? `Offline · ${q.waiting} to save` : 'Offline') : s.error ? 'Not updated' : q.waiting ? `Saving ${q.waiting}` : '';
   badge.textContent = text;
   badge.hidden = text === '';
-  badge.className = `badge ${!s.online ? 'offline' : s.error ? 'problem' : 'busy'}`;
-  badge.title = !s.online ? 'Offline · view only: saving needs a connection' : s.error ?? '';
+  badge.className = `badge ${q.failed ? 'problem' : !s.online ? 'offline' : s.error ? 'problem' : q.waiting ? 'saving-badge' : 'busy'}`;
+  badge.title = q.failed ? 'Some entries were not saved: look for Not saved, then Retry or Discard'
+    : !s.online ? `Offline${q.waiting ? ': your changes are kept on this phone and saved when the connection returns' : ''}` : s.error ?? '';
 }
 
 /**
@@ -88,6 +104,8 @@ async function signOutEverywhere() {
 }
 
 async function signOut() {
+  const q = store.queued();
+  if (q.waiting + q.failed > 0 && !window.confirm(`${q.waiting + q.failed} ${q.waiting + q.failed === 1 ? 'change has' : 'changes have'} not been saved yet and will be lost. Sign out anyway?`)) return;
   await endSession();
   await clearThisPhone();
 }
@@ -131,6 +149,7 @@ async function start() {
   });
   window.addEventListener('hashchange', () => { show(); window.scrollTo(0, 0); });
   store.onChange(() => show());
+  store.onNotice((text) => toast(text));
 
   let hasCopy = false;
   try {

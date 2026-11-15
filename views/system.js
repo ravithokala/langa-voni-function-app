@@ -4,7 +4,7 @@ import { el, uk } from '../dom.js';
 import { VERSION } from '../version.js';
 import { call } from '../api.js';
 import { phoneChecks } from '../checks.js';
-import { data, status } from '../store/store.js';
+import { data, status, queued } from '../store/store.js';
 
 /**
  * More → System check (as the other apps): the server's read-only checks,
@@ -49,6 +49,12 @@ async function thisPhone(serverCounts) {
     lines.push({ name: 'Phone copy', ok: same,
       detail: same ? `${words(mine)}, the same as the sheet` : `${words(mine)}, but the sheet has ${words(serverCounts)}: close and reopen the app` });
   }
+
+  // Changes kept on this phone until saved (ADR-013).
+  const q = queued();
+  lines.push({ name: 'Waiting to save', ok: q.failed === 0,
+    detail: q.failed ? `${q.failed} not saved (look for Not saved: Retry or Discard)${q.waiting ? `, ${q.waiting} waiting` : ''}`
+      : q.waiting ? `${q.waiting} ${q.waiting === 1 ? 'change' : 'changes'} waiting: saved when the connection allows` : 'Nothing waiting' });
 
   // The last failed requests (app-kit's problems.js), so a "Not updated" spell can be looked at afterwards.
   lines.push(shared.offline, shared.storage, shared.problems);
