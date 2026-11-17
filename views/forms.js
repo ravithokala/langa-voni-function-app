@@ -7,7 +7,7 @@ import { Stages } from '../shared/stages.js';
 import { Weight } from '../shared/weight.js';
 import { Model } from '../shared/model.js';
 import { openSheet, toast } from './sheet.js';
-import { field, busy } from './fields.js';
+import { field, group, busy } from './fields.js';
 
 /**
  * The forms that add, change and remove things. One builder; each opening function lists its fields.
@@ -84,7 +84,8 @@ function openForm(spec) {
   const rows = [];
   for (let i = 0; i < controls.length; i++) {
     const c = controls[i];
-    const one = (/** @type {typeof c} */ x) => field(x.spec.label, x.node, x.spec.type === 'stage' ? 'stage-field' : '');
+    // Buttons never go inside a <label> (see group in fields.js).
+    const one = (/** @type {typeof c} */ x) => (x.spec.type === 'stage' ? group(x.spec.label, x.node, 'stage-field') : field(x.spec.label, x.node));
     if (c.spec.half && controls[i + 1]?.spec.half) { rows.push(el('div', { class: 'row2' }, one(c), one(controls[i + 1]))); i += 1; } else rows.push(one(c));
     if (c.spec.hint) rows.push(el('p', { class: 'hint' }, c.spec.hint));
   }

@@ -87,8 +87,10 @@ function family(g) {
     // Shown at once and saved behind (ADR-013): quick taps never wait for the server.
     onclick: () => store.markGuest(g.guest_id, field, !g[field]) }, el('i', { 'aria-hidden': 'true' }, g[field] ? '✓' : ''), label);
   return el('li', { class: 'family' },
-    el('button', { class: 'family-name', type: 'button', onclick: () => (g.version === 0 ? toast('Still saving: try again in a moment.') : guestForm(g.guest_id)) },
-      el('b', {}, g.name), el('span', {}, `${g.headcount} ${g.headcount === 1 ? 'person' : 'people'}${g.note ? ` · ${g.note}` : ''}`),
+    // Retry / Discard sit beside the name's button, never inside it (a button in a button does not work on an iPhone).
+    el('div', { class: 'family-main' },
+      el('button', { class: 'family-name', type: 'button', onclick: () => (g.version === 0 ? toast('Still saving: try again in a moment.') : guestForm(g.guest_id)) },
+        el('b', {}, g.name), el('span', {}, `${g.headcount} ${g.headcount === 1 ? 'person' : 'people'}${g.note ? ` · ${g.note}` : ''}`)),
       saveState(state, { retry: () => store.retry(g.guest_id), discard: () => store.discard(g.guest_id) })),
     tick('informed', 'Informed'), tick('invited', 'Invited'));
 }

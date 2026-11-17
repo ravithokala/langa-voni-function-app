@@ -65,11 +65,12 @@ function row(i, now) {
     : i.total_paise === null && i.advance_paise === null ? 'No price yet'
     : `${rupees(i.total_paise)} · advance ${rupees(i.advance_paise)} · balance ${rupees(Money.balance(i.total_paise, i.advance_paise))}`;
   return el('li', { class: `row${late ? ' is-late' : Stages.isDone(i) ? ' is-done' : ''}` },
-    el('button', { class: 'row-open', type: 'button', onclick: () => (i.version === 0 ? toast('Still saving: try again in a moment.') : itemForm(i.item_id)) },
-      el('div', { class: 'row-title' }, i.name),
-      who ? el('div', { class: 'row-sub' }, who) : '',
-      when ? el('div', { class: `row-sub${late ? ' late' : ''}` }, when) : '',
-      el('div', { class: 'money' }, money),
+    el('div', { class: 'row-body' },
+      el('button', { class: 'row-open', type: 'button', onclick: () => (i.version === 0 ? toast('Still saving: try again in a moment.') : itemForm(i.item_id)) },
+        el('div', { class: 'row-title' }, i.name),
+        who ? el('div', { class: 'row-sub' }, who) : '',
+        when ? el('div', { class: `row-sub${late ? ' late' : ''}` }, when) : '',
+        el('div', { class: 'money' }, money)),
       saveState(store.rowState(i.item_id), { retry: () => store.retry(i.item_id), discard: () => store.discard(i.item_id) })),
     el('button', { class: `pill ${stageClass(i, now)}`, type: 'button', disabled: !next,
       'aria-label': next ? `${Stages.label(i.stage)}: tap for ${Stages.label(next)}` : Stages.label(i.stage),

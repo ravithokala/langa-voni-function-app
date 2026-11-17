@@ -258,3 +258,7 @@ details.done-list > summary { color: var(--accent); font-weight: 600; cursor: po
 .badge.saving-badge { background: var(--accent-soft); color: var(--accent); }
 .guest-filter { margin: 2px 0 8px; gap: 5px; flex-wrap: nowrap; overflow-x: auto; }
 .guest-filter button { padding: 6px 10px; font-size: 14px; white-space: nowrap; flex: none; }
+/* A row's main button with its save state beside it, not inside it (no button in a button: iPhone) */
+.row-body, .family-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.row-body .row-open, .family-main .family-name { width: 100%; flex: none; }
+.row-body .not-saved, .family-main .not-saved, .row-body .saving, .family-main .saving { padding: 0 0 6px; }

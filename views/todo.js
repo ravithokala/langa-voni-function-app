@@ -45,9 +45,10 @@ function toBuyGroup() {
             store.setStage(i.item_id, next);
             toast(`${i.name}: ${Stages.label(next)}.`, [], () => store.setStage(i.item_id, 'to-buy'));
           } }, '✓'),
-        el('button', { class: 'row-open', type: 'button', onclick: () => (i.version === 0 ? toast('Still saving: try again in a moment.') : itemForm(i.item_id)) },
-          el('div', { class: 'row-title' }, i.name),
-          el('div', { class: 'row-sub' }, [Model.sectionLabel(i.section), i.for_whom ? `for ${i.for_whom}` : ''].filter(Boolean).join(' · ')),
+        el('div', { class: 'row-body' },
+          el('button', { class: 'row-open', type: 'button', onclick: () => (i.version === 0 ? toast('Still saving: try again in a moment.') : itemForm(i.item_id)) },
+            el('div', { class: 'row-title' }, i.name),
+            el('div', { class: 'row-sub' }, [Model.sectionLabel(i.section), i.for_whom ? `for ${i.for_whom}` : ''].filter(Boolean).join(' · '))),
           saveState(store.rowState(i.item_id), { retry: () => store.retry(i.item_id), discard: () => store.discard(i.item_id) })));
     })),
     el('p', { class: 'hint' }, 'Tick when bought (jewellery: when ordered). Add these in Shopping.')];
@@ -68,9 +69,10 @@ function row(t, now) {
         store.markTask(t.task_id, !t.done);
         toast(t.done ? 'Back on the list.' : 'Done.', [], t.done ? undefined : () => store.markTask(t.task_id, false));
       } }, '✓'),
-    el('button', { class: 'row-open', type: 'button', onclick: () => (t.version === 0 ? toast('Still saving: try again in a moment.') : taskForm(t.task_id)) },
-      el('div', { class: `row-title${t.done ? ' done-title' : ''}` }, t.title),
-      sub ? el('div', { class: `row-sub${overdue ? ' late' : ''}` }, sub) : '',
-      t.note ? el('div', { class: 'row-sub' }, t.note) : '',
+    el('div', { class: 'row-body' },
+      el('button', { class: 'row-open', type: 'button', onclick: () => (t.version === 0 ? toast('Still saving: try again in a moment.') : taskForm(t.task_id)) },
+        el('div', { class: `row-title${t.done ? ' done-title' : ''}` }, t.title),
+        sub ? el('div', { class: `row-sub${overdue ? ' late' : ''}` }, sub) : '',
+        t.note ? el('div', { class: 'row-sub' }, t.note) : ''),
       saveState(store.rowState(t.task_id), { retry: () => store.retry(t.task_id), discard: () => store.discard(t.task_id) })));
 }
