@@ -141,7 +141,7 @@ const Validation = (() => {
     const advance_paise = c.money('advance_paise', input.advance_paise);
     checkAdvance(c, total_paise, advance_paise);
     const jewel = section === 'jewellery';
-    // Jewellery: Gifted by; anything else: Brought by (ADR-016). Either way: Expected → Received, not counted in the budget.
+    // Paid by (whose money, when not ours) and Bought by (who buys it, when not us): ADR-019.
     const gifted_by = c.text('gifted_by', input.gifted_by, LIMITS.short, false);
     const weight_mg = jewel ? weight(c, input.weight_mg) : null;
     /** @type {Metal|null} */
@@ -151,13 +151,14 @@ const Validation = (() => {
       if (input.metal === 'silver' || input.metal === 'gold') metal = input.metal;
       else if (input.metal !== undefined && input.metal !== null && input.metal !== '') c.add('metal', 'INVALID', 'must be Gold or Silver');
     }
-    const shape = { section, gifted_by };
+    const bought_by = c.text('bought_by', input.bought_by, LIMITS.short, false);
+    const shape = { section, gifted_by, bought_by };
     /** @type {Stage} */
     let stage = Stages.forItem(shape)[0].id;
     if (input.stage !== undefined && input.stage !== null && input.stage !== '') {
-      if (Stages.isValid(section, input.stage, Stages.isGift(shape))) stage = input.stage;
+      if (Stages.isValid(section, input.stage, Stages.byOthers(shape))) stage = input.stage;
       // A piece that has just become (or stopped being) a gift keeps the nearest stage of its new kind.
-      else if (Stages.isValid(section, input.stage, !Stages.isGift(shape))) stage = Stages.fit(shape, input.stage);
+      else if (Stages.isValid(section, input.stage, !Stages.byOthers(shape))) stage = Stages.fit(shape, input.stage);
       else c.add('stage', 'INVALID', 'is not a stage for this section');
     }
     const dress = section === 'dresses';
@@ -167,7 +168,7 @@ const Validation = (() => {
     const ready_by = tracked ? c.date('ready_by', input.ready_by) : null;
     if (given_on && ready_by && ready_by < given_on) c.add('ready_by', 'INVALID', `cannot be before the day it was ${dress ? 'given' : 'ordered'}`);
     const note = c.text('note', input.note, LIMITS.note, false);
-    return { value: { section, name, for_whom, vendor, total_paise, advance_paise, stage, tailor, given_on, ready_by, note, weight_mg, gifted_by, metal }, errors: c.errors };
+    return { value: { section, name, for_whom, vendor, total_paise, advance_paise, stage, tailor, given_on, ready_by, note, weight_mg, gifted_by, metal, bought_by }, errors: c.errors };
   }
 
   /** A weight typed in grams, kept as milligrams. @param {ReturnType<typeof collector>} c @param {unknown} value @returns {number|null} */

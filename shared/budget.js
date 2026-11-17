@@ -7,10 +7,9 @@ import { Weight } from './weight.js';
 import { Stages } from './stages.js';
 
 /**
- * The budget (ADR-008, ADR-015, ADR-016): four sections come straight from the shopping items: Shopping (dresses and
- * other things), Jewellery (pieces bought), Gifted jewellery (pieces given: who gave them and their weight) and Brought by
- * others (dresses and other things someone else brings). The last two are listed but not counted in the totals, as no
- * money is spent. Then each budget section (the suggested ones in their order, then
+ * The budget (ADR-008, ADR-015, ADR-019): four sections come straight from the shopping items: Shopping (dresses and
+ * other things) and Jewellery, paid with our money (also when someone else buys them), then Gifted jewellery and Paid by
+ * others, paid with someone else's money: listed (who paid, weight) but not counted in the totals. Then each budget section (the suggested ones in their order, then
  * the rest A–Z). Every line has a total, an advance given and a balance; a line with no total yet counts as nothing
  * and is flagged.
  *
@@ -32,12 +31,12 @@ const Budget = (() => {
 
   /** @param {Item} item @returns {BudgetRow} */
   const fromItem = (item) => ({ kind: 'item', id: item.item_id, name: item.name, vendor: item.vendor, for_whom: item.for_whom,
-    weight_mg: item.weight_mg ?? null, metal: item.section === 'jewellery' ? Model.metalOf(item) : null, gifted_by: item.gifted_by ?? null, total_paise: item.total_paise,
+    weight_mg: item.weight_mg ?? null, metal: item.section === 'jewellery' ? Model.metalOf(item) : null, gifted_by: item.gifted_by ?? null, bought_by: item.bought_by ?? null, total_paise: item.total_paise,
     advance_paise: item.advance_paise, balance_paise: Money.balance(item.total_paise, item.advance_paise), due_date: null });
 
   /** @param {BudgetLine} line @returns {BudgetRow} */
   const fromLine = (line) => ({ kind: 'line', id: line.line_id, name: line.name, vendor: line.vendor, for_whom: null, weight_mg: null, metal: null,
-    gifted_by: null, total_paise: line.total_paise,
+    gifted_by: null, bought_by: null, total_paise: line.total_paise,
     advance_paise: line.advance_paise, balance_paise: Money.balance(line.total_paise, line.advance_paise), due_date: line.due_date });
 
   /**

@@ -8,7 +8,7 @@ import { itemForm, lineForm } from './forms.js';
 
 /**
  * Budget (ADR-008, ADR-015): the grand total, then Shopping, Jewellery and Gifted jewellery (straight from the Shopping
- * tab; gifts are listed with who gave them and their weight, not counted in the totals) and each section. Every line has
+ * tab; what others paid for is listed with who paid and the weight, not counted in the totals) and each section. Every line has
  * its total, advance given and balance.
  * @param {HTMLElement} main
  */
@@ -29,7 +29,7 @@ export function budgetScreen(main) {
 }
 
 /**
- * Gifted jewellery (who gave each piece and its weight) and Brought by others (ADR-016): listed with their value for
+ * Gifted jewellery (who paid for each piece and its weight) and Paid by others (ADR-019): listed with their value for
  * reference, not in the totals. @param {BudgetSection} s
  */
 function giftsCard(s) {
@@ -38,12 +38,12 @@ function giftsCard(s) {
   return el('section', { class: 'card' },
     el('div', { class: 'card-top' }, el('h2', {}, s.name), el('span', { class: 'count num' }, count)),
     s.grams && Weight.formatByMetal(s.grams) ? el('p', { class: 'link-note' }, Weight.formatByMetal(s.grams)) : '',
-    el('p', { class: 'link-note' }, `${jewellery ? 'Gifts' : 'Brought by others'}: not counted in the totals. From the Shopping tab: change these there.`),
+    el('p', { class: 'link-note' }, 'Paid with someone else\'s money: not counted in the totals. From the Shopping tab: change these there.'),
     el('table', { class: 'budget-table' },
       el('thead', {}, el('tr', {}, el('th', {}, ''), jewellery ? el('th', {}, 'Weight') : '', el('th', {}, 'Value'))),
       el('tbody', {}, s.rows.map((r) => el('tr', {},
         el('td', {}, el('button', { type: 'button', onclick: () => itemForm(r.id) }, r.name,
-          el('span', { class: 'vendor' }, [r.gifted_by ? `${jewellery ? 'from' : 'by'} ${r.gifted_by}` : '', r.for_whom ? `for ${r.for_whom}` : ''].filter(Boolean).join(' · ')))),
+          el('span', { class: 'vendor' }, [r.gifted_by ? `paid by ${r.gifted_by}` : '', r.bought_by ? `bought by ${r.bought_by}` : '', r.for_whom ? `for ${r.for_whom}` : ''].filter(Boolean).join(' · ')))),
         jewellery ? el('td', {}, r.weight_mg !== null ? Weight.formatPiece(r.weight_mg, r.metal) : '—') : '', el('td', {}, rupees(r.total_paise)))),
       el('tr', { class: 'sum' }, el('td', {}, 'Section'), jewellery ? el('td', {}, '') : '', el('td', {}, rupees(s.totals.total))))));
 }
@@ -61,7 +61,7 @@ function card(s, now) {
       el('tbody', {}, s.rows.map((r) => {
         const overdue = r.due_date && r.due_date < now && (r.balance_paise ?? 0) > 0;
         // Under the name: who a shopping item is for (RT, 2026-11-15); a budget line's due date (who to pay is not asked for).
-        const vendor = [r.for_whom ? `for ${r.for_whom}` : '', r.weight_mg !== null ? Weight.formatPiece(r.weight_mg, r.metal) : ''].filter(Boolean).join(' · ') || null;
+        const vendor = [r.for_whom ? `for ${r.for_whom}` : '', r.bought_by ? `bought by ${r.bought_by}` : '', r.weight_mg !== null ? Weight.formatPiece(r.weight_mg, r.metal) : ''].filter(Boolean).join(' · ') || null;
         return el('tr', {},
           el('td', {}, el('button', { type: 'button', onclick: () => (r.kind === 'item' ? itemForm(r.id) : lineForm(r.id)) }, r.name,
             vendor || r.due_date ? el('span', { class: `vendor${overdue ? ' error' : ''}` },

@@ -169,17 +169,21 @@ export function itemForm(id, section = 'dresses') {
     { key: 'vendor', label: jewel ? 'Jeweller' : 'Shop', type: 'text', value: i?.vendor ?? '', half: true },
     { key: 'total_paise', label: 'Total price', type: 'money', value: i?.total_paise ?? null, half: true },
     { key: 'advance_paise', label: 'Advance given', type: 'money', value: i?.advance_paise ?? null, half: true },
-    { key: 'stage', label: 'Where it is', type: 'stage', value: i?.stage ?? 'to-buy', section: s, gift: Boolean(i && Stages.isGift(i)),
-      hint: `${jewel ? 'A gift' : 'Something brought by others'} goes Expected → Received: fill in ${jewel ? 'Gifted by' : 'Brought by'} and save, and its stages change.` },
+    { key: 'stage', label: 'Where it is', type: 'stage', value: i?.stage ?? 'to-buy', section: s, gift: Boolean(i && Stages.byOthers(i)),
+      hint: 'When someone else buys it or pays, it goes Expected → Received: fill in Bought by or Paid by and save, and its stages change.' },
   ];
+  // Who buys it and whose money (ADR-019): left empty, we buy it with our money. Bought by others with our money still
+  // counts in the budget (Advance given = the money handed over); Paid by others does not.
+  const others = /** @type {Spec[]} */ ([
+    { key: 'bought_by', label: 'Bought by (if not us)', type: 'text', value: i?.bought_by ?? '', half: true },
+    { key: 'gifted_by', label: 'Paid by (if not us)', type: 'text', value: i?.gifted_by ?? '', half: true },
+  ]);
   if (jewel) {
     // Gold unless chosen (ADR-017): gold and silver weights are never added together.
     fields.splice(3, 0, { key: 'metal', label: 'Metal', type: 'select', value: i?.metal ?? 'gold', options: Model.METALS.map((m) => /** @type {[string, string]} */ ([m.id, m.label])), half: true },
-      { key: 'weight_mg', label: 'Weight (g)', type: 'weight', value: i?.weight_mg ?? null, half: true },
-      { key: 'gifted_by', label: 'Gifted by', type: 'text', value: i?.gifted_by ?? '' });
+      { key: 'weight_mg', label: 'Weight (g)', type: 'weight', value: i?.weight_mg ?? null, half: true }, ...others);
   } else {
-    // Brought by someone else (ADR-016): not bought by the family, so not in To do or the budget's totals.
-    fields.splice(3, 0, { key: 'gifted_by', label: 'Brought by (if someone else brings it)', type: 'text', value: i?.gifted_by ?? '' });
+    fields.splice(3, 0, ...others);
   }
   if (dress) {
     fields.push({ key: 'tailor', label: 'Tailor', type: 'text', value: i?.tailor ?? '' },

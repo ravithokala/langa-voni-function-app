@@ -5,8 +5,9 @@
 /**
  * Where a shopping item is (ADR-008). A dress goes To buy → Bought → Given for stitching → Trial → Ready → Collected;
  * a jewellery piece To buy → Ordered → Ready → Collected (ADR-014); anything else To buy → Bought. Anything someone
- * else gives or brings (Gifted by / Brought by: ADR-015, ADR-016) goes Expected → Received instead. Tapping a stage moves
- * it one step on. A dress or a bought piece of jewellery is done once Ready, a gift once Received, anything else once Bought.
+ * else buys (Bought by) or pays for (Paid by) goes Expected → Received instead (ADR-019). Tapping a stage moves it one
+ * step on. A dress or a piece of jewellery we buy is done once Ready, one others buy or pay for once Received, anything
+ * else once Bought.
  *
  * Shared with the phone app: scripts/sync-shared.js copies this file to pwa/shared/.
  */
@@ -30,23 +31,29 @@ const Stages = (() => {
   ]);
   const ALL = Object.freeze([...DRESS, JEWELLERY[1], ...GIFT]);
 
-  /** Given or brought by someone else (jewellery: Gifted by; anything else: Brought by). @param {{ section?: string|null, gifted_by?: string|null }} item */
+  /**
+   * @typedef {{ section?: string|null, gifted_by?: string|null, bought_by?: string|null }} Shape
+   */
+  /** Paid for with someone else's money (Paid by; the `gifted_by` column): not counted in the budget (ADR-019). @param {Shape} item */
   const isGift = (item) => Boolean(item.gifted_by);
 
+  /** Bought or paid for by someone else: we wait for it, Expected → Received, and it is not on To do's To buy. @param {Shape} item */
+  const byOthers = (item) => isGift(item) || Boolean(item.bought_by);
+
   /**
-   * The stages of a section; anything given or brought by others has its own two.
-   * @param {ItemSection|string|null|undefined} section @param {boolean} [gift]
+   * The stages of a section; anything others buy or pay for has its own two.
+   * @param {ItemSection|string|null|undefined} section @param {boolean} [others]
    */
-  const forSection = (section, gift = false) => (gift ? GIFT : section === 'dresses' ? DRESS : section === 'jewellery' ? JEWELLERY : OTHER);
+  const forSection = (section, others = false) => (others ? GIFT : section === 'dresses' ? DRESS : section === 'jewellery' ? JEWELLERY : OTHER);
 
-  /** @param {{ section?: string|null, gifted_by?: string|null }} item */
-  const forItem = (item) => forSection(item.section, isGift(item));
+  /** @param {Shape} item */
+  const forItem = (item) => forSection(item.section, byOthers(item));
 
-  /** Followed from order to ready, with a promised-by date (dresses and jewellery, unless given or brought by others). @param {{ section?: string|null, gifted_by?: string|null }} item */
-  const isTracked = (item) => !isGift(item) && (item.section === 'dresses' || item.section === 'jewellery');
+  /** Followed from order to ready, with a promised-by date (dresses and jewellery we buy ourselves). @param {Shape} item */
+  const isTracked = (item) => !byOthers(item) && (item.section === 'dresses' || item.section === 'jewellery');
 
-  /** @param {ItemSection|string|null|undefined} section @param {unknown} stage @param {boolean} [gift] @returns {stage is Stage} */
-  const isValid = (section, stage, gift = false) => forSection(section, gift).some((s) => s.id === stage);
+  /** @param {ItemSection|string|null|undefined} section @param {unknown} stage @param {boolean} [others] @returns {stage is Stage} */
+  const isValid = (section, stage, others = false) => forSection(section, others).some((s) => s.id === stage);
 
   /** @param {string} stage */
   function label(stage) {
@@ -54,7 +61,7 @@ const Stages = (() => {
     return found ? found.label : '';
   }
 
-  /** The stage after this one, or null at the last. @param {{ section?: string|null, gifted_by?: string|null }} item @param {Stage} stage @returns {Stage|null} */
+  /** The stage after this one, or null at the last. @param {Shape} item @param {Stage} stage @returns {Stage|null} */
   function next(item, stage) {
     const list = forItem(item);
     const i = list.findIndex((s) => s.id === stage);
@@ -63,7 +70,7 @@ const Stages = (() => {
 
   /**
    * A stage that fits after the item became, or stopped being, a gift: the first stage, or the last when it was done.
-   * @param {{ section?: string|null, gifted_by?: string|null }} item @param {Stage} stage @returns {Stage}
+   * @param {Shape} item @param {Stage} stage @returns {Stage}
    */
   function fit(item, stage) {
     const list = forItem(item);
@@ -72,20 +79,20 @@ const Stages = (() => {
     return wasDone ? list[list.length - 1].id : list[0].id;
   }
 
-  /** At Ready or Collected (a dress or bought jewellery), Received (a gift), or Bought (anything else). @param {Pick<Item, 'section'|'stage'> & { gifted_by?: string|null }} item */
+  /** At Ready or Collected (a dress or jewellery we buy), Received (others buy or pay), or Bought (anything else). @param {Pick<Item, 'section'|'stage'> & Shape} item */
   function isDone(item) {
-    if (!isValid(item.section, item.stage, isGift(item))) return false;
-    if (isGift(item)) return item.stage === 'received';
+    if (!isValid(item.section, item.stage, byOthers(item))) return false;
+    if (byOthers(item)) return item.stage === 'received';
     return isTracked(item) ? item.stage === 'ready' || item.stage === 'collected' : item.stage === 'bought';
   }
 
   /**
-   * A dress or bought piece of jewellery whose promised-by date has passed and is not Ready yet.
-   * @param {Pick<Item, 'section'|'stage'|'ready_by'|'deleted'> & { gifted_by?: string|null }} item @param {string} today
+   * A dress or piece of jewellery we buy whose promised-by date has passed and is not Ready yet.
+   * @param {Pick<Item, 'section'|'stage'|'ready_by'|'deleted'> & Shape} item @param {string} today
    */
   const isLate = (item, today) => !item.deleted && isTracked(item) && !isDone(item) && item.ready_by !== null && item.ready_by < today;
 
-  return { DRESS, JEWELLERY, GIFT, OTHER, isGift, forSection, forItem, isTracked, isValid, label, next, fit, isDone, isLate };
+  return { DRESS, JEWELLERY, GIFT, OTHER, isGift, byOthers, forSection, forItem, isTracked, isValid, label, next, fit, isDone, isLate };
 })();
 
 export { Stages };

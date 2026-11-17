@@ -22,7 +22,7 @@ export function shoppingScreen(main, arg) {
   const list = store.items(section);
   const tab = (/** @type {ItemSection} */ id, /** @type {string} */ label) => el('button', { type: 'button', 'aria-pressed': String(id === section),
     onclick: () => { window.location.hash = `#/shopping/${id}`; } }, label);
-  // Money spent only: a gift's value is not counted (ADR-015), as in the budget.
+  // Our money only: something paid by others is not counted (ADR-019), as in the budget.
   const paid = list.filter((i) => !Stages.isGift(i));
   const total = paid.reduce((sum, i) => sum + (i.total_paise ?? 0), 0);
   const advance = paid.reduce((sum, i) => sum + (i.advance_paise ?? 0), 0);
@@ -57,10 +57,11 @@ const WORDS = {
 function row(i, now) {
   const late = Stages.isLate(i, now);
   const next = Stages.next(i, i.stage);
-  const who = [i.for_whom ? `for ${i.for_whom}` : '', i.gifted_by ? `${i.section === 'jewellery' ? 'gift from' : 'brought by'} ${i.gifted_by}` : '', i.section === 'dresses' ? i.tailor ?? i.vendor : i.vendor,
+  const who = [i.for_whom ? `for ${i.for_whom}` : '', i.bought_by ? `bought by ${i.bought_by}` : '', i.gifted_by ? `paid by ${i.gifted_by}` : '',
+    i.section === 'dresses' ? i.tailor ?? i.vendor : i.vendor,
     i.weight_mg !== null ? Weight.formatPiece(i.weight_mg, i.metal) : i.section === 'jewellery' && i.metal === 'silver' ? 'silver' : ''].filter(Boolean).join(' · ');
   const when = promised(i, now);
-  const given = i.section === 'jewellery' ? 'A gift' : 'Brought by others';
+  const given = `Paid by ${i.gifted_by}`;
   const money = Stages.isGift(i) ? (i.total_paise === null ? given : `${given} · worth ${rupees(i.total_paise)}`)
     : i.total_paise === null && i.advance_paise === null ? 'No price yet'
     : `${rupees(i.total_paise)} · advance ${rupees(i.advance_paise)} · balance ${rupees(Money.balance(i.total_paise, i.advance_paise))}`;

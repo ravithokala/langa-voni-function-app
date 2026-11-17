@@ -16,9 +16,12 @@ const Model = (() => {
   const CITY_FIELDS = Object.freeze(['city_id', 'name', 'sort', ...WHO]);
   /** A family invited, under a city (ADR-006). */
   const GUEST_FIELDS = Object.freeze(['guest_id', 'city_id', 'name', 'headcount', 'informed', 'invited', 'note', ...WHO]);
-  /** Shopping, dresses and other things (ADR-008). Money in paise. */
+  /**
+   * Shopping, dresses and other things (ADR-008). Money in paise. `gifted_by` holds Paid by (whose money, when not ours) and
+   * `bought_by` who buys it, when not us (ADR-019).
+   */
   const ITEM_FIELDS = Object.freeze(['item_id', 'section', 'name', 'for_whom', 'vendor', 'total_paise', 'advance_paise', 'stage',
-    'tailor', 'given_on', 'ready_by', 'note', ...WHO, 'weight_mg', 'gifted_by', 'metal']);
+    'tailor', 'given_on', 'ready_by', 'note', ...WHO, 'weight_mg', 'gifted_by', 'metal', 'bought_by']);
   /** A budget line outside shopping (ADR-008). */
   const BUDGET_FIELDS = Object.freeze(['line_id', 'section', 'name', 'vendor', 'total_paise', 'advance_paise', 'due_date', 'note', ...WHO]);
   const TASK_FIELDS = Object.freeze(['task_id', 'category', 'title', 'owner', 'due_date', 'done', 'note', ...WHO]);
@@ -44,7 +47,7 @@ const Model = (() => {
   const SHOPPING_SECTION = 'Shopping';
   const JEWELLERY_SECTION = 'Jewellery';
   const GIFTS_SECTION = 'Gifted jewellery';
-  const BROUGHT_SECTION = 'Brought by others';
+  const BROUGHT_SECTION = 'Paid by others';
   const LINKED_SECTIONS = Object.freeze([SHOPPING_SECTION, JEWELLERY_SECTION, GIFTS_SECTION, BROUGHT_SECTION]);
   /** @param {string|null|undefined} name */
   const isLinkedSection = (name) => LINKED_SECTIONS.some((s) => s.toLowerCase() === String(name ?? '').trim().toLowerCase());
